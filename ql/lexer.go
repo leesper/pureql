@@ -4,23 +4,25 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"regexp"
+	"strconv"
 	"strings"
 )
 
 var (
-	regexComment = `(?P<comment>#.*)`
-	regexPunct   = `(?P<punct>!|\$|\(|\)|\.{3}|:|=|@|\[|\]|\{|\}|\|)`
+	regexComment = `(?P<comment>#[\x{0009}\x{0020}-\x{FFFF}]*)`
+	regexPunct   = `(?P<punct>[!\$\(\)\.{3}:=@\[\]\{\}\|])`
 	regexName    = `(?P<name>[_A-Za-z][_0-9A-Za-z]*)`
-	regexInt     = `(?P<int>-?(?:0|[1-9][0-9]*))`
-	regexFloat   = `(?P<float>-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:(?:E|e)(?:\+|-)?[0-9]+)?)`
-	regexString  = `(?P<string>\"(?:[^"\\\n\r]|(?:\\(?:u[0-9a-fA-F]{4}|["\\/bfnrt])))*\")`
-	regexPat     = fmt.Sprintf(`\s*%s|%s|%s|%s|%s|%s`,
+	regexNumeric = `(?P<numeric>-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:(?:E|e)(?:\+|-)?[0-9]+)?)`
+	regexString  = `(?P<string>\"(?:[^"\\\x{000A}\x{000D}]|(?:\\(?:u[0-9a-fA-F]{4}|["\\/bfnrt])))*\")`
+	regexPat     = fmt.Sprintf(`\s*%s|%s|%s|%s|%s`,
 		regexComment,
-		regexFloat,
-		regexInt,
+		regexNumeric,
 		regexPunct,
 		regexName,
 		regexString)
+	re     = regexp.MustCompile(regexPat)
+	groups = re.SubexpNames()[1:] // skip the whole pattern group
 )
 
 // Lexer converts the GraphQL source text into tokens.
@@ -48,7 +50,7 @@ func NewLexerWithSource(source string) *Lexer {
 
 // Read consumes and returns a token.
 func (l *Lexer) Read() Token {
-	tok := EOF
+	tok := Token{EOF, tokens[EOF]}
 	if l.more(0) {
 		tok = l.tokenBuf[0]
 		l.tokenBuf = l.tokenBuf[1:]
@@ -58,7 +60,7 @@ func (l *Lexer) Read() Token {
 
 // Peek returns a token in ith position from current.
 func (l *Lexer) Peek(i int) Token {
-	tok := EOF
+	tok := Token{EOF, tokens[EOF]}
 	if l.more(i) {
 		tok = l.tokenBuf[i]
 	}
@@ -80,21 +82,37 @@ func (l *Lexer) readLine() {
 	l.hasMore = l.scanner.Scan()
 	if l.hasMore {
 		line := l.scanner.Text()
-		// TODO: parse line into tokens, append them in tokenBuf
-		fmt.Println("line", line)
+		tokens := l.tokenize(line)
+		l.tokenBuf = append(l.tokenBuf, tokens...)
 	}
-	// example:
-	// fmt.Println(regexPat)
-	// re := regexp.MustCompile(regexPat)
-	// allMatches := re.FindAllStringSubmatch(`computer = "net"`, -1)
-	// names := re.SubexpNames()
-	// for _, match := range allMatches {
-	// 	group := map[string]string{}
-	// 	for i := 0; i < len(names); i++ {
-	// 		if names[i] != "" && match[i] != "" {
-	// 			group[names[i]] = match[i]
-	// 		}
-	// 	}
-	// 	fmt.Printf("group: %#v\n", group)
-	// }
+}
+
+func (l *Lexer) tokenize(line string) []Token {
+	var tokens []Token
+	matches := re.FindAllStringSubmatch(line, -1)
+	for _, match := range matches {
+		match = match[1:] // skip the whole pattern group
+		for idx, val := range match {
+			if val != "" {
+				group := groups[idx]
+				switch group {
+				case "numeric":
+					if _, err := strconv.Atoi(val); err != nil {
+						tokens = append(tokens, Token{FLOAT, val})
+					} else {
+						tokens = append(tokens, Token{INT, val})
+					}
+				case "comment":
+					// ignore, do nothing
+				case "punct":
+					tokens = append(tokens, Token{keywords[val], val})
+				case "name":
+					tokens = append(tokens, Token{NAME, val})
+				case "string":
+					tokens = append(tokens, Token{STRING, strings.Trim(val, `"`)})
+				}
+			}
+		}
+	}
+	return tokens
 }

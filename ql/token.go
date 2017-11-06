@@ -5,13 +5,24 @@ import (
 	"strconv"
 )
 
-// Token is the set of lexical tokens of GraphQL
-type Token int
+// Token is the set of lexical tokens of GraphQL.
+type Token struct {
+	Kind Kind
+	Text string
+}
+
+// Kind represents the Token kind.
+type Kind int
+
+// TokenEOF is a special token for end-of-file.
+var (
+	TokenEOF = Token{EOF, tokens[EOF]}
+)
 
 // Token types defined
 const (
 	// Special tokens
-	ILLEGAL Token = iota
+	ILLEGAL Kind = iota
 	EOF
 	COMMENT
 
@@ -55,7 +66,7 @@ const (
 	keywordEnd
 )
 
-var tokens = map[Token]string{
+var tokens = map[Kind]string{
 	ILLEGAL:    "ILLEGAL",
 	EOF:        "EOF",
 	COMMENT:    "COMMENT",
@@ -88,17 +99,17 @@ var tokens = map[Token]string{
 	ENUM:       "enum",
 }
 
-var keywords map[string]Token
+var keywords map[string]Kind
 
 func init() {
-	keywords = make(map[string]Token)
+	keywords = make(map[string]Kind)
 	for i := keywordBeg + 1; i < keywordEnd; i++ {
 		keywords[tokens[i]] = i
 	}
 }
 
-// Lookup maps an identifier to its keyword token or NAME (if not a keyword).
-func Lookup(ident string) Token {
+// Lookup maps an identifier to its keyword kind or NAME (if not a keyword).
+func Lookup(ident string) Kind {
 	if tok, isKeyword := keywords[ident]; isKeyword {
 		return tok
 	}
@@ -108,29 +119,29 @@ func Lookup(ident string) Token {
 // IsPunct returns true for tokens corresponding to punctuators;
 // it returns false otherwise.
 func (tok Token) IsPunct() bool {
-	return punctBeg < tok && tok < punctEnd
+	return punctBeg < tok.Kind && tok.Kind < punctEnd
 }
 
 // IsLiteral returns true for tokens corresponding to names or scalar types;
 // it returns false otherwise.
 func (tok Token) IsLiteral() bool {
-	return literalBeg < tok && tok < literalEnd
+	return literalBeg < tok.Kind && tok.Kind < literalEnd
 }
 
 // IsKeyword returns true for tokens corresponding to keywords;
 // it returns false otherwise.
 func (tok Token) IsKeyword() bool {
-	return keywordBeg < tok && tok < keywordEnd
+	return keywordBeg < tok.Kind && tok.Kind < keywordEnd
 }
 
 // String returns the string corresponding to the token tok.
 func (tok Token) String() string {
 	s := ""
-	if 0 <= tok && tok < Token(len(tokens)) {
-		s = tokens[tok]
+	if 0 <= tok.Kind && tok.Kind < Kind(len(tokens)) {
+		s = tokens[tok.Kind]
 	}
 	if s == "" {
-		s = fmt.Sprintf("token(%s)", strconv.Itoa(int(tok)))
+		s = fmt.Sprintf("token(%s)", strconv.Itoa(int(tok.Kind)))
 	}
 	return s
 }
