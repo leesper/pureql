@@ -1,9 +1,6 @@
 package ql
 
-import (
-	"fmt"
-	"strconv"
-)
+import "fmt"
 
 // Token is the set of lexical tokens of GraphQL.
 type Token struct {
@@ -146,7 +143,7 @@ func (tok Token) String() string {
 		s = tokens[tok.Kind]
 	}
 	if s == "" {
-		s = fmt.Sprintf("token(%s)", strconv.Itoa(int(tok.Kind)))
+		s = fmt.Sprintf("token(%d)", int(tok.Kind))
 	}
 	return s
 }

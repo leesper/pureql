@@ -1,6 +1,9 @@
 package ql
 
-import "testing"
+import (
+	"reflect"
+	"testing"
+)
 
 func TestComment(t *testing.T) {
 	comments := []string{
@@ -67,6 +70,161 @@ func TestLexerKeyword(t *testing.T) {
 		}
 	}
 }
-func TestLexerIllegal(t *testing.T)       {}
-func TestLexerQueryDocument(t *testing.T) {}
-func TestLexerTypeDefs(t *testing.T)      {}
+
+func TestParseMutation(t *testing.T) {
+	source := `
+mutation {
+  likeStory(storyID: 12345) {
+    story {
+      likeCount
+    }
+  }
+}
+	`
+	lexer := NewLexerWithSource(source)
+	var tokens []Token
+
+	tok := lexer.Read()
+	for tok != TokenEOF {
+		tokens = append(tokens, tok)
+		tok = lexer.Read()
+	}
+
+	if !tokens[0].IsKeyword() {
+		t.Errorf("token %v should be a keyword", tokens[0])
+	}
+
+	if !tokens[6].IsLiteral() {
+		t.Errorf("token %v should be a literal", tokens[6])
+	}
+
+	if !tokens[1].IsPunct() {
+		t.Errorf("token %v should be a punctuator", tokens[1])
+	}
+
+	expectedLen := 15
+	if len(tokens) != expectedLen {
+		t.Errorf("returned len: %d, expected: %d", len(tokens), expectedLen)
+	}
+
+	expected := []Token{
+		Token{MUTATION, "mutation"},
+		Token{LBRACE, "{"},
+		Token{NAME, "likeStory"},
+		Token{LPAREN, "("},
+		Token{NAME, "storyID"},
+		Token{COLON, ":"},
+		Token{INT, "12345"},
+		Token{RPAREN, ")"},
+		Token{LBRACE, "{"},
+		Token{NAME, "story"},
+		Token{LBRACE, "{"},
+		Token{NAME, "likeCount"},
+		Token{RBRACE, "}"},
+		Token{RBRACE, "}"},
+		Token{RBRACE, "}"},
+	}
+
+	if !reflect.DeepEqual(tokens, expected) {
+		t.Errorf("lexer scann error, returned: %v, expected: %v", tokens, expected)
+	}
+}
+
+func TestParseQueryWithFragments(t *testing.T) {
+	source := `
+query withNestedFragments {
+  user(id: 4) {
+    friends(first: 10) {
+      ...friendFields
+    }
+    mutualFriends(first: 10) {
+      ...friendFields
+    }
+  }
+}
+
+fragment friendFields on User {
+  id
+  name
+  ...standardProfilePic
+}
+
+fragment standardProfilePic on User {
+  profilePic(size: 50)
+}
+`
+	lexer := NewLexerWithSource(source)
+	var tokens []Token
+
+	tok := lexer.Read()
+	for tok != TokenEOF {
+		tokens = append(tokens, tok)
+		tok = lexer.Read()
+	}
+
+	expectedLen := 54
+	if len(tokens) != expectedLen {
+		t.Errorf("returned len: %d, expected: %d", len(tokens), expectedLen)
+	}
+
+	expected := []Token{
+		Token{QUERY, "query"},
+		Token{NAME, "withNestedFragments"},
+		Token{LBRACE, "{"},
+		Token{NAME, "user"},
+		Token{LPAREN, "("},
+		Token{NAME, "id"},
+		Token{COLON, ":"},
+		Token{INT, "4"},
+		Token{RPAREN, ")"},
+		Token{LBRACE, "{"},
+		Token{NAME, "friends"},
+		Token{LPAREN, "("},
+		Token{NAME, "first"},
+		Token{COLON, ":"},
+		Token{INT, "10"},
+		Token{RPAREN, ")"},
+		Token{LBRACE, "{"},
+		Token{ELLIPSIS, "..."},
+		Token{NAME, "friendFields"},
+		Token{RBRACE, "}"},
+		Token{NAME, "mutualFriends"},
+		Token{LPAREN, "("},
+		Token{NAME, "first"},
+		Token{COLON, ":"},
+		Token{INT, "10"},
+		Token{RPAREN, ")"},
+		Token{LBRACE, "{"},
+		Token{ELLIPSIS, "..."},
+		Token{NAME, "friendFields"},
+		Token{RBRACE, "}"},
+		Token{RBRACE, "}"},
+		Token{RBRACE, "}"},
+		Token{FRAGMENT, "fragment"},
+		Token{NAME, "friendFields"},
+		Token{ON, "on"},
+		Token{NAME, "User"},
+		Token{LBRACE, "{"},
+		Token{NAME, "id"},
+		Token{NAME, "name"},
+		Token{ELLIPSIS, "..."},
+		Token{NAME, "standardProfilePic"},
+		Token{RBRACE, "}"},
+		Token{FRAGMENT, "fragment"},
+		Token{NAME, "standardProfilePic"},
+		Token{ON, "on"},
+		Token{NAME, "User"},
+		Token{LBRACE, "{"},
+		Token{NAME, "profilePic"},
+		Token{LPAREN, "("},
+		Token{NAME, "size"},
+		Token{COLON, ":"},
+		Token{INT, "50"},
+		Token{RPAREN, ")"},
+		Token{RBRACE, "}"},
+	}
+
+	if !reflect.DeepEqual(tokens, expected) {
+		t.Errorf("lexer scann error, returned: %v, expected: %v", tokens, expected)
+	}
+}

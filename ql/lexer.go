@@ -107,7 +107,7 @@ func (l *Lexer) tokenize(line string) []Token {
 				case "punct":
 					tokens = append(tokens, Token{puncts[val], val})
 				case "name":
-					tokens = append(tokens, Token{NAME, val})
+					tokens = append(tokens, Token{Lookup(val), val})
 				case "string":
 					tokens = append(tokens, Token{STRING, strings.Trim(val, `"`)})
 				}
