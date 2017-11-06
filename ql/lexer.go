@@ -11,7 +11,7 @@ import (
 
 var (
 	regexComment = `(?P<comment>#[\x{0009}\x{0020}-\x{FFFF}]*)`
-	regexPunct   = `(?P<punct>[!\$\(\)\.{3}:=@\[\]\{\}\|])`
+	regexPunct   = `(?P<punct>!|\$|\(|\)|\.{3}|:|=|@|\[|\]|\{|\}|\|)`
 	regexName    = `(?P<name>[_A-Za-z][_0-9A-Za-z]*)`
 	regexNumeric = `(?P<numeric>-?(?:0|[1-9][0-9]*)(?:\.[0-9]+)?(?:(?:E|e)(?:\+|-)?[0-9]+)?)`
 	regexString  = `(?P<string>\"(?:[^"\\\x{000A}\x{000D}]|(?:\\(?:u[0-9a-fA-F]{4}|["\\/bfnrt])))*\")`
@@ -50,7 +50,7 @@ func NewLexerWithSource(source string) *Lexer {
 
 // Read consumes and returns a token.
 func (l *Lexer) Read() Token {
-	tok := Token{EOF, tokens[EOF]}
+	tok := TokenEOF
 	if l.more(0) {
 		tok = l.tokenBuf[0]
 		l.tokenBuf = l.tokenBuf[1:]
@@ -60,7 +60,7 @@ func (l *Lexer) Read() Token {
 
 // Peek returns a token in ith position from current.
 func (l *Lexer) Peek(i int) Token {
-	tok := Token{EOF, tokens[EOF]}
+	tok := TokenEOF
 	if l.more(i) {
 		tok = l.tokenBuf[i]
 	}
@@ -105,7 +105,7 @@ func (l *Lexer) tokenize(line string) []Token {
 				case "comment":
 					// ignore, do nothing
 				case "punct":
-					tokens = append(tokens, Token{keywords[val], val})
+					tokens = append(tokens, Token{puncts[val], val})
 				case "name":
 					tokens = append(tokens, Token{NAME, val})
 				case "string":

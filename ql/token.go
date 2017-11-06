@@ -100,11 +100,16 @@ var tokens = map[Kind]string{
 }
 
 var keywords map[string]Kind
+var puncts map[string]Kind
 
 func init() {
 	keywords = make(map[string]Kind)
 	for i := keywordBeg + 1; i < keywordEnd; i++ {
 		keywords[tokens[i]] = i
+	}
+	puncts = make(map[string]Kind)
+	for i := punctBeg + 1; i < punctEnd; i++ {
+		puncts[tokens[i]] = i
 	}
 }
 
