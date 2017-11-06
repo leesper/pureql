@@ -9,6 +9,8 @@ import (
 	"strings"
 )
 
+// TODO: using regular expression is somehow a slow method, maybe using ANTLR or
+// doing character-by-character lexer instead.
 var (
 	regexComment = `(?P<comment>#[\x{0009}\x{0020}-\x{FFFF}]*)`
 	regexPunct   = `(?P<punct>!|\$|\(|\)|\.{3}|:|=|@|\[|\]|\{|\}|\|)`
