@@ -132,6 +132,7 @@ mutation {
 
 func TestParseQueryWithFragments(t *testing.T) {
 	source := `
+# this is a query with nested fragments
 query withNestedFragments {
   user(id: 4) {
     friends(first: 10) {
@@ -143,12 +144,14 @@ query withNestedFragments {
   }
 }
 
+# outer fragment
 fragment friendFields on User {
   id
   name
   ...standardProfilePic
 }
 
+# inner fragment
 fragment standardProfilePic on User {
   profilePic(size: 50)
 }
