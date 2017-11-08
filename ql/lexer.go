@@ -105,7 +105,9 @@ func (l *Lexer) consume() {
 }
 
 func (l *Lexer) readComment() {
-	for l.current != rune(EOF) {
+	l.consume()
+	for l.current != rune(EOF) &&
+		(l.current > '\u001F' || l.current == '\u0009') { // SourceCharacter but not LineTerminator
 		l.consume()
 	}
 }
