@@ -110,40 +110,37 @@ func init() {
 	}
 }
 
-// Lookup maps an identifier to its keyword kind or NAME (if not a keyword).
-func Lookup(ident string) Kind {
-	if tok, isKeyword := keywords[ident]; isKeyword {
-		return tok
-	}
-	return NAME
+func illegalToken(val string) Token {
+	return Token{ILLEGAL, val}
 }
+
+// Lookup maps an identifier to its keyword kind or NAME (if not a keyword).
+// func Lookup(ident string) Kind {
+// 	if tok, isKeyword := keywords[ident]; isKeyword {
+// 		return tok
+// 	}
+// 	return NAME
+// }
 
 // IsPunct returns true for tokens corresponding to punctuators;
 // it returns false otherwise.
-func (tok Token) IsPunct() bool {
-	return punctBeg < tok.Kind && tok.Kind < punctEnd
-}
+// func (tok Token) IsPunct() bool {
+// 	return punctBeg < tok.Kind && tok.Kind < punctEnd
+// }
 
 // IsLiteral returns true for tokens corresponding to names or scalar types;
 // it returns false otherwise.
-func (tok Token) IsLiteral() bool {
-	return literalBeg < tok.Kind && tok.Kind < literalEnd
-}
+// func (tok Token) IsLiteral() bool {
+// 	return literalBeg < tok.Kind && tok.Kind < literalEnd
+// }
 
 // IsKeyword returns true for tokens corresponding to keywords;
 // it returns false otherwise.
-func (tok Token) IsKeyword() bool {
-	return keywordBeg < tok.Kind && tok.Kind < keywordEnd
-}
+// func (tok Token) IsKeyword() bool {
+// 	return keywordBeg < tok.Kind && tok.Kind < keywordEnd
+// }
 
 // String returns the string corresponding to the token tok.
 func (tok Token) String() string {
-	s := ""
-	if 0 <= tok.Kind && tok.Kind < Kind(len(tokens)) {
-		s = tokens[tok.Kind]
-	}
-	if s == "" {
-		s = fmt.Sprintf("token(%d)", int(tok.Kind))
-	}
-	return s
+	return fmt.Sprintf("<'%s', %s>", tok.Text, tokens[tok.Kind])
 }
