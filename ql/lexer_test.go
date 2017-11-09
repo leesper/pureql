@@ -286,6 +286,178 @@ func TestInvalidStrings(t *testing.T) {
 	}
 }
 
+func TestLexesNumbers(t *testing.T) {
+	lexer := NewLexer("4")
+	tok := lexer.Read()
+	expected := Token{INT, "4"}
+	if tok != expected {
+		t.Errorf("returned: %v, expected: %v", tok, expected)
+	}
+
+	lexer = NewLexer("4.123")
+	tok = lexer.Read()
+	expected = Token{FLOAT, "4.123"}
+	if tok != expected {
+		t.Errorf("returned: %v, expected: %v", tok, expected)
+	}
+
+	lexer = NewLexer("-4")
+	tok = lexer.Read()
+	expected = Token{INT, "-4"}
+	if tok != expected {
+		t.Errorf("returned: %v, expected: %v", tok, expected)
+	}
+
+	lexer = NewLexer("9")
+	tok = lexer.Read()
+	expected = Token{INT, "9"}
+	if tok != expected {
+		t.Errorf("returned: %v, expected: %v", tok, expected)
+	}
+
+	lexer = NewLexer("0")
+	tok = lexer.Read()
+	expected = Token{INT, "0"}
+	if tok != expected {
+		t.Errorf("returned: %v, expected: %v", tok, expected)
+	}
+
+	lexer = NewLexer("-4.123")
+	tok = lexer.Read()
+	expected = Token{FLOAT, "-4.123"}
+	if tok != expected {
+		t.Errorf("returned: %v, expected: %v", tok, expected)
+	}
+
+	lexer = NewLexer("0.123")
+	tok = lexer.Read()
+	expected = Token{FLOAT, "0.123"}
+	if tok != expected {
+		t.Errorf("returned: %v, expected: %v", tok, expected)
+	}
+
+	lexer = NewLexer("123e4")
+	tok = lexer.Read()
+	expected = Token{FLOAT, "123e4"}
+	if tok != expected {
+		t.Errorf("returned: %v, expected: %v", tok, expected)
+	}
+
+	lexer = NewLexer("123E4")
+	tok = lexer.Read()
+	expected = Token{FLOAT, "123E4"}
+	if tok != expected {
+		t.Errorf("returned: %v, expected: %v", tok, expected)
+	}
+
+	lexer = NewLexer("123e-4")
+	tok = lexer.Read()
+	expected = Token{FLOAT, "123e-4"}
+	if tok != expected {
+		t.Errorf("returned: %v, expected: %v", tok, expected)
+	}
+
+	lexer = NewLexer("123e+4")
+	tok = lexer.Read()
+	expected = Token{FLOAT, "123e+4"}
+	if tok != expected {
+		t.Errorf("returned: %v, expected: %v", tok, expected)
+	}
+
+	lexer = NewLexer("-1.123e4")
+	tok = lexer.Read()
+	expected = Token{FLOAT, "-1.123e4"}
+	if tok != expected {
+		t.Errorf("returned: %v, expected: %v", tok, expected)
+	}
+
+	lexer = NewLexer("-1.123E4")
+	tok = lexer.Read()
+	expected = Token{FLOAT, "-1.123E4"}
+	if tok != expected {
+		t.Errorf("returned: %v, expected: %v", tok, expected)
+	}
+
+	lexer = NewLexer("-1.123e-4")
+	tok = lexer.Read()
+	expected = Token{FLOAT, "-1.123e-4"}
+	if tok != expected {
+		t.Errorf("returned: %v, expected: %v", tok, expected)
+	}
+
+	lexer = NewLexer("-1.123e+4")
+	tok = lexer.Read()
+	expected = Token{FLOAT, "-1.123e+4"}
+	if tok != expected {
+		t.Errorf("returned: %v, expected: %v", tok, expected)
+	}
+
+	lexer = NewLexer("-1.123e4567")
+	tok = lexer.Read()
+	expected = Token{FLOAT, "-1.123e4567"}
+	if tok != expected {
+		t.Errorf("returned: %v, expected: %v", tok, expected)
+	}
+}
+
+func TestInvalidNumbers(t *testing.T) {
+	lexer := NewLexer("00")
+	tok := lexer.Read()
+	expected := Token{ILLEGAL, "00"}
+	if tok != expected {
+		t.Errorf("returned: %v, expected: %v", tok, expected)
+	}
+
+	lexer = NewLexer("+1")
+	tok = lexer.Read()
+	expected = Token{ILLEGAL, "+"}
+	if tok != expected {
+		t.Errorf("returned: %v, expected: %v", tok, expected)
+	}
+
+	lexer = NewLexer("1.")
+	tok = lexer.Read()
+	expected = Token{ILLEGAL, "1." + string(rune(EOF))}
+	if tok != expected {
+		t.Errorf("returned: %v, expected: %v", tok, expected)
+	}
+
+	lexer = NewLexer(".123")
+	tok = lexer.Read()
+	expected = Token{ILLEGAL, ".1"}
+	if tok != expected {
+		t.Errorf("returned: %v, expected: %v", tok, expected)
+	}
+
+	lexer = NewLexer("1.A")
+	tok = lexer.Read()
+	expected = Token{ILLEGAL, "1.A"}
+	if tok != expected {
+		t.Errorf("returned: %v, expected: %v", tok, expected)
+	}
+
+	lexer = NewLexer("-A")
+	tok = lexer.Read()
+	expected = Token{ILLEGAL, "-A"}
+	if tok != expected {
+		t.Errorf("returned: %v, expected: %v", tok, expected)
+	}
+
+	lexer = NewLexer("1.0e")
+	tok = lexer.Read()
+	expected = Token{ILLEGAL, "1.0e" + string(rune(EOF))}
+	if tok != expected {
+		t.Errorf("returned: %v, expected: %v", tok, expected)
+	}
+
+	lexer = NewLexer("1.0eA")
+	tok = lexer.Read()
+	expected = Token{ILLEGAL, "1.0eA"}
+	if tok != expected {
+		t.Errorf("returned: %v, expected: %v", tok, expected)
+	}
+}
+
 // func TestLexicalTokens(t *testing.T) {
 // 	lexer := NewLexerWithSource(`a = 2, 47 3.14159 1e50 -6.0221413e23 "Golang\n\r\t" # and this is a comment`)
 // 	var tokens []Token

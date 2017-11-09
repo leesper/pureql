@@ -152,10 +152,26 @@ func (l *Lexer) readNumber() Token {
 	}
 
 	var isFloat bool
+	if l.current == '0' {
+		b.WriteRune('0')
+		l.consume()
+		return illegalToken(b.String())
+	}
+
 	if l.current == '.' {
 		isFloat = true
 		b.WriteRune('.')
 		l.consume()
+
+		if '0' <= l.current && l.current <= '9' {
+			b.WriteRune(l.current)
+			l.consume()
+		} else {
+			b.WriteRune(l.current)
+			l.consume()
+			return illegalToken(b.String())
+		}
+
 		for '0' <= l.current && l.current <= '9' {
 			b.WriteRune(l.current)
 			l.consume()
@@ -166,29 +182,25 @@ func (l *Lexer) readNumber() Token {
 		isFloat = true
 		b.WriteRune(l.current)
 		l.consume()
-	} else {
-		b.WriteRune(l.current)
-		l.consume()
-		return illegalToken(b.String())
-	}
 
-	if l.current == '-' {
-		b.WriteRune('-')
-		l.consume()
-	}
+		if l.current == '-' || l.current == '+' {
+			b.WriteRune(l.current)
+			l.consume()
+		}
 
-	if '0' <= l.current && l.current <= '9' {
-		b.WriteRune(l.current)
-		l.consume()
-	} else {
-		b.WriteRune(l.current)
-		l.consume()
-		return illegalToken(b.String())
-	}
+		if '0' <= l.current && l.current <= '9' {
+			b.WriteRune(l.current)
+			l.consume()
+		} else {
+			b.WriteRune(l.current)
+			l.consume()
+			return illegalToken(b.String())
+		}
 
-	for '0' <= l.current && l.current <= '9' {
-		b.WriteRune(l.current)
-		l.consume()
+		for '0' <= l.current && l.current <= '9' {
+			b.WriteRune(l.current)
+			l.consume()
+		}
 	}
 
 	if isFloat {
