@@ -71,16 +71,27 @@ func (l *Lexer) Read() Token {
 			l.consume()
 			return Token{RBRACE, "}"}
 		case '.': // ...
+			var b bytes.Buffer
+			b.WriteRune('.')
 			l.consume()
+
 			if l.current != '.' {
-				return illegalToken(string(l.current))
+				b.WriteRune(l.current)
+				l.consume()
+				return illegalToken(b.String())
 			}
+			b.WriteRune('.')
 			l.consume()
+
 			if l.current != '.' {
-				return illegalToken(string(l.current))
+				b.WriteRune(l.current)
+				l.consume()
+				return illegalToken(b.String())
 			}
+			b.WriteRune('.')
 			l.consume()
-			return Token{SPREAD, "..."}
+
+			return Token{SPREAD, b.String()}
 		case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-':
 			return l.readNumber()
 		case 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o',
@@ -266,6 +277,10 @@ func (l *Lexer) readString() Token {
 					return illegalToken(b.String())
 				}
 				b.WriteRune([]rune(ucode)[0])
+			default:
+				b.WriteRune(l.current)
+				l.consume()
+				return illegalToken(b.String())
 			}
 		} else {
 			b.WriteRune(l.current)
