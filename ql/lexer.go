@@ -14,13 +14,9 @@ type Lexer struct {
 	current rune
 }
 
-// NewLexerWithSource returns a new Lexer parsing source.
-func NewLexerWithSource(source string) *Lexer {
+// NewLexer returns a new Lexer parsing source.
+func NewLexer(source string) *Lexer {
 	scanner := bufio.NewScanner(strings.NewReader(source))
-	return newLexerWithScanner(scanner)
-}
-
-func newLexerWithScanner(scanner *bufio.Scanner) *Lexer {
 	scanner.Split(bufio.ScanRunes)
 	lexer := &Lexer{
 		scanner: scanner,
@@ -94,6 +90,8 @@ func (l *Lexer) Read() Token {
 			return l.readName()
 		case '"':
 			return l.readString()
+		default:
+			return illegalToken(string(l.current))
 		}
 	}
 	return TokenEOF
@@ -189,9 +187,19 @@ func (l *Lexer) readNumber() Token {
 	return Token{INT, b.String()}
 }
 
-// TODO
 func (l *Lexer) readName() Token {
-	return TokenEOF
+	var b bytes.Buffer
+	b.WriteRune(l.current)
+	l.consume()
+	for l.current == '_' ||
+		('0' <= l.current && l.current <= '9') ||
+		('a' <= l.current && l.current <= 'z') ||
+		('A' <= l.current && l.current <= 'Z') {
+		b.WriteRune(l.current)
+		l.consume()
+	}
+
+	return Token{NAME, b.String()}
 }
 
 // '"' ([\u0009\u0020-\uFFFF]|EscapedUnicode|EscapedChar)* '"'
@@ -205,10 +213,13 @@ func (l *Lexer) readString() Token {
 	for l.current != rune(EOF) && l.current != '"' && l.current != '\u000A' && l.current != '\u000D' {
 
 		// SourceCharacter
-		if l.current == '\u0009' || ('\u0020' <= l.current && l.current <= '\uFFFF') {
+		if l.current < '\u0020' && l.current != '\u0009' {
 			b.WriteRune(l.current)
 			l.consume()
-		} else if l.current == '\\' { // Escaped Char and Unicode
+			return illegalToken(b.String())
+		}
+
+		if l.current == '\\' { // Escaped Char and Unicode
 			l.consume()
 
 			switch l.current {
@@ -255,11 +266,10 @@ func (l *Lexer) readString() Token {
 					return illegalToken(b.String())
 				}
 				b.WriteRune([]rune(ucode)[0])
-			default:
-				b.WriteRune(l.current)
-				l.consume()
-				return illegalToken(b.String())
 			}
+		} else {
+			b.WriteRune(l.current)
+			l.consume()
 		}
 	}
 
