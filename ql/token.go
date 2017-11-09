@@ -25,19 +25,19 @@ const (
 
 	// Punctuators
 	punctBeg
-	BANG     // !
-	DOLLAR   // $
-	LPAREN   // (
-	RPAREN   // )
-	ELLIPSIS // ...
-	COLON    // :
-	EQL      // =
-	AT       // @
-	LBRACK   // [
-	RBRACK   // ]
-	LBRACE   // {
-	PIPE     // |
-	RBRACE   // }
+	BANG   // !
+	DOLLAR // $
+	LPAREN // (
+	RPAREN // )
+	SPREAD // ...
+	COLON  // :
+	EQL    // =
+	AT     // @
+	LBRACK // [
+	RBRACK // ]
+	LBRACE // {
+	PIPE   // |
+	RBRACE // }
 	punctEnd
 
 	// Names and scalar type literals
@@ -71,7 +71,7 @@ var tokens = map[Kind]string{
 	DOLLAR:     "$",
 	LPAREN:     "(",
 	RPAREN:     ")",
-	ELLIPSIS:   "...",
+	SPREAD:     "...",
 	COLON:      ":",
 	EQL:        "=",
 	AT:         "@",
@@ -110,8 +110,8 @@ func init() {
 	}
 }
 
-func illegalToken(val string) Token {
-	return Token{ILLEGAL, val}
+func illegalToken(v string) Token {
+	return Token{ILLEGAL, v}
 }
 
 // Lookup maps an identifier to its keyword kind or NAME (if not a keyword).

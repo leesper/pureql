@@ -1,25 +1,22 @@
 package ql
 
-//
-// import (
-// 	"reflect"
-// 	"testing"
-// )
-//
-// func TestComment(t *testing.T) {
-// 	comments := []string{
-// 		`#this is comment`,
-// 		`# this is comment with space`,
-// 		`#	this is comment with tab`,
-// 		`#		this is comment with tabs		`,
-// 	}
-// 	for _, comment := range comments {
-// 		lexer := NewLexerWithSource(comment)
-// 		if tok := lexer.Read(); tok != TokenEOF {
-// 			t.Errorf("returned: %v, expected: %v", tok, TokenEOF)
-// 		}
-// 	}
-// }
+import "testing"
+
+func TestComment(t *testing.T) {
+	comments := []string{
+		`#this is comment`,
+		`# this is comment with space`,
+		`#	this is comment with tab`,
+		`#		this is comment with tabs		`,
+	}
+	for _, comment := range comments {
+		lexer := NewLexerWithSource(comment)
+		if tok := lexer.Read(); tok != TokenEOF {
+			t.Errorf("returned: %v, expected: %v", tok, TokenEOF)
+		}
+	}
+}
+
 //
 // func TestCommas(t *testing.T) {
 // 	lexer := NewLexerWithSource(",,,,, ,, ,\n")

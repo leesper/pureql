@@ -2,6 +2,9 @@ package ql
 
 import (
 	"bufio"
+	"bytes"
+	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -81,7 +84,7 @@ func (l *Lexer) Read() Token {
 				return illegalToken(string(l.current))
 			}
 			l.consume()
-			return Token{ELLIPSIS, "..."}
+			return Token{SPREAD, "..."}
 		case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-':
 			return l.readNumber()
 		case 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o',
@@ -93,7 +96,7 @@ func (l *Lexer) Read() Token {
 			return l.readString()
 		}
 	}
-	return illegalToken(string(l.current))
+	return TokenEOF
 }
 
 func (l *Lexer) consume() {
@@ -112,9 +115,78 @@ func (l *Lexer) readComment() {
 	}
 }
 
-// TODO
+// IntValue : '-'? IntegerPart
+// FloatValue : '-'? IntegerPart ('.' Digit*)? ('e'|'E') '-'? Digit+
+// IntegerPart : '0' | NonZeroDigit Digit*
 func (l *Lexer) readNumber() Token {
-	return TokenEOF
+	var b bytes.Buffer
+	if l.current == '-' {
+		b.WriteRune('-')
+		l.consume()
+	}
+
+	// IntegerPart
+	if l.current == '0' {
+		b.WriteRune('0')
+		l.consume()
+	} else if '1' <= l.current && l.current <= '9' {
+		b.WriteRune(l.current)
+		l.consume()
+		for '0' <= l.current && l.current <= '9' {
+			b.WriteRune(l.current)
+			l.consume()
+		}
+	} else {
+		b.WriteRune(l.current)
+		l.consume()
+		return illegalToken(b.String())
+	}
+
+	var isFloat bool
+	if l.current == '.' {
+		isFloat = true
+		b.WriteRune('.')
+		l.consume()
+		for '0' <= l.current && l.current <= '9' {
+			b.WriteRune(l.current)
+			l.consume()
+		}
+	}
+
+	if l.current == 'e' || l.current == 'E' {
+		isFloat = true
+		b.WriteRune(l.current)
+		l.consume()
+	} else {
+		b.WriteRune(l.current)
+		l.consume()
+		return illegalToken(b.String())
+	}
+
+	if l.current == '-' {
+		b.WriteRune('-')
+		l.consume()
+	}
+
+	if '0' <= l.current && l.current <= '9' {
+		b.WriteRune(l.current)
+		l.consume()
+	} else {
+		b.WriteRune(l.current)
+		l.consume()
+		return illegalToken(b.String())
+	}
+
+	for '0' <= l.current && l.current <= '9' {
+		b.WriteRune(l.current)
+		l.consume()
+	}
+
+	if isFloat {
+		return Token{FLOAT, b.String()}
+	}
+
+	return Token{INT, b.String()}
 }
 
 // TODO
@@ -122,9 +194,84 @@ func (l *Lexer) readName() Token {
 	return TokenEOF
 }
 
-// TODO
+// '"' ([\u0009\u0020-\uFFFF]|EscapedUnicode|EscapedChar)* '"'
+// EscapedUnicode: \u [0-9A-Fa-f]{4}
+// EscapedChar: \" \\ \/ \b \f \n \r \t
 func (l *Lexer) readString() Token {
-	return TokenEOF
+	var b bytes.Buffer
+	b.WriteRune('"')
+	l.consume()
+
+	for l.current != rune(EOF) && l.current != '"' && l.current != '\u000A' && l.current != '\u000D' {
+
+		// SourceCharacter
+		if l.current == '\u0009' || ('\u0020' <= l.current && l.current <= '\uFFFF') {
+			b.WriteRune(l.current)
+			l.consume()
+		} else if l.current == '\\' { // Escaped Char and Unicode
+			l.consume()
+
+			switch l.current {
+			case '"':
+				b.WriteRune('"')
+				l.consume()
+			case '\\':
+				b.WriteRune('\\')
+				l.consume()
+			case '/':
+				b.WriteRune('/')
+				l.consume()
+			case 'b':
+				b.WriteRune('\b')
+				l.consume()
+			case 'f':
+				b.WriteRune('\f')
+				l.consume()
+			case 'n':
+				b.WriteRune('\n')
+				l.consume()
+			case 'r':
+				b.WriteRune('\r')
+				l.consume()
+			case 't':
+				b.WriteRune('\t')
+				l.consume()
+			case 'u':
+				l.consume()
+
+				hex1 := l.current
+				l.consume()
+				hex2 := l.current
+				l.consume()
+				hex3 := l.current
+				l.consume()
+				hex4 := l.current
+				l.consume()
+
+				quote := fmt.Sprintf(`'\u%s'`, string([]rune{hex1, hex2, hex3, hex4}))
+				ucode, err := strconv.Unquote(quote)
+				if err != nil {
+					b.WriteString(quote)
+					return illegalToken(b.String())
+				}
+				b.WriteRune([]rune(ucode)[0])
+			default:
+				b.WriteRune(l.current)
+				l.consume()
+				return illegalToken(b.String())
+			}
+		}
+	}
+
+	if l.current != '"' {
+		b.WriteRune(l.current)
+		l.consume()
+		return illegalToken(b.String())
+	}
+
+	b.WriteRune('"')
+	strVal := b.String()
+	return Token{STRING, strVal[1 : len(strVal)-1]}
 }
 
 // // Peek returns a token in ith position from current.
