@@ -50,50 +50,60 @@ const (
 
 	// Reserved keywords
 	keywordBeg
+	SCHEMA
 	QUERY
 	MUTATION
+	SUBSCRIPTION
 	FRAGMENT
 	ON
+	SCALAR
 	TYPE
 	INTERFACE
 	IMPLEMENTS
+	EXTEND
 	UNION
 	INPUT
 	ENUM
+	DIRECTIVE
 	keywordEnd
 )
 
 var tokens = map[Kind]string{
-	ILLEGAL:    "ILLEGAL",
-	EOF:        "EOF",
-	COMMENT:    "COMMENT",
-	BANG:       "!",
-	DOLLAR:     "$",
-	LPAREN:     "(",
-	RPAREN:     ")",
-	SPREAD:     "...",
-	COLON:      ":",
-	EQL:        "=",
-	AT:         "@",
-	LBRACK:     "[",
-	RBRACK:     "]",
-	LBRACE:     "{",
-	PIPE:       "|",
-	RBRACE:     "}",
-	NAME:       "NAME",
-	INT:        "INT",
-	FLOAT:      "FLOAT",
-	STRING:     "STRING",
-	QUERY:      "query",
-	MUTATION:   "mutation",
-	FRAGMENT:   "fragment",
-	ON:         "on",
-	TYPE:       "type",
-	INTERFACE:  "interface",
-	IMPLEMENTS: "implements",
-	UNION:      "union",
-	INPUT:      "input",
-	ENUM:       "enum",
+	ILLEGAL:      "ILLEGAL",
+	EOF:          "EOF",
+	COMMENT:      "COMMENT",
+	BANG:         "!",
+	DOLLAR:       "$",
+	LPAREN:       "(",
+	RPAREN:       ")",
+	SPREAD:       "...",
+	COLON:        ":",
+	EQL:          "=",
+	AT:           "@",
+	LBRACK:       "[",
+	RBRACK:       "]",
+	LBRACE:       "{",
+	PIPE:         "|",
+	RBRACE:       "}",
+	NAME:         "NAME",
+	INT:          "INT",
+	FLOAT:        "FLOAT",
+	STRING:       "STRING",
+	SCHEMA:       "schema",
+	QUERY:        "query",
+	MUTATION:     "mutation",
+	SUBSCRIPTION: "subscription",
+	FRAGMENT:     "fragment",
+	ON:           "on",
+	SCALAR:       "scalar",
+	TYPE:         "type",
+	INTERFACE:    "interface",
+	IMPLEMENTS:   "implements",
+	EXTEND:       "extend",
+	UNION:        "union",
+	INPUT:        "input",
+	ENUM:         "enum",
+	DIRECTIVE:    "directive",
 }
 
 var keywords map[string]Kind
