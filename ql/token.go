@@ -124,31 +124,31 @@ func illegalToken(v string) Token {
 	return Token{ILLEGAL, v}
 }
 
-// Lookup maps an identifier to its keyword kind or NAME (if not a keyword).
-// func Lookup(ident string) Kind {
-// 	if tok, isKeyword := keywords[ident]; isKeyword {
-// 		return tok
-// 	}
-// 	return NAME
-// }
+func lookupName(name string) Kind {
+	kind, ok := keywords[name]
+	if ok {
+		return kind
+	}
+	return NAME
+}
 
 // IsPunct returns true for tokens corresponding to punctuators;
 // it returns false otherwise.
-// func (tok Token) IsPunct() bool {
-// 	return punctBeg < tok.Kind && tok.Kind < punctEnd
-// }
+func (tok Token) IsPunct() bool {
+	return punctBeg < tok.Kind && tok.Kind < punctEnd
+}
 
 // IsLiteral returns true for tokens corresponding to names or scalar types;
 // it returns false otherwise.
-// func (tok Token) IsLiteral() bool {
-// 	return literalBeg < tok.Kind && tok.Kind < literalEnd
-// }
+func (tok Token) IsLiteral() bool {
+	return literalBeg < tok.Kind && tok.Kind < literalEnd
+}
 
 // IsKeyword returns true for tokens corresponding to keywords;
 // it returns false otherwise.
-// func (tok Token) IsKeyword() bool {
-// 	return keywordBeg < tok.Kind && tok.Kind < keywordEnd
-// }
+func (tok Token) IsKeyword() bool {
+	return keywordBeg < tok.Kind && tok.Kind < keywordEnd
+}
 
 // String returns the string corresponding to the token tok.
 func (tok Token) String() string {

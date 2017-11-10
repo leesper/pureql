@@ -24,6 +24,9 @@ func TestLexesPunctuators(t *testing.T) {
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
+	if !tok.IsPunct() {
+		t.Error("should be punctuator", tok)
+	}
 
 	tok = lexer.Read()
 	expected = Token{DOLLAR, "$"}
@@ -192,11 +195,14 @@ func TestSkipComments(t *testing.T) {
 }
 
 func TestSkipCommas(t *testing.T) {
-	lexer := NewLexer(",,,foo,,,")
+	lexer := NewLexer(",,,query,,,")
 	tok := lexer.Read()
-	expected := Token{NAME, "foo"}
+	expected := Token{QUERY, "query"}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
+	}
+	if !tok.IsKeyword() {
+		t.Error("should be keyword", tok)
 	}
 }
 
@@ -209,6 +215,9 @@ func TestLexesStrings(t *testing.T) {
 	}
 	if tok.String() != `<'simple', STRING>` {
 		t.Errorf("returned: %s, expected: %s", tok.String(), `<'simple', STRING>`)
+	}
+	if !tok.IsLiteral() {
+		t.Error("should be literal", tok)
 	}
 
 	lexer = NewLexer(`" white space "`)
