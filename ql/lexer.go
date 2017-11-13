@@ -123,7 +123,11 @@ func (l *Lexer) consume() {
 	if l.scanner.Scan() {
 		l.current = []rune(l.scanner.Text())[0]
 	} else {
-		l.current = rune(EOF)
+		if l.scanner.Err() != nil {
+			l.current = rune(ILLEGAL)
+		} else {
+			l.current = rune(EOF)
+		}
 	}
 }
 

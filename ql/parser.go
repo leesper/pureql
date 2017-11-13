@@ -6,6 +6,8 @@ type Parser struct {
 
 func (p *Parser) Document() error { return nil }
 
+func (p *Parser) Definition() error { return nil }
+
 func (p *Parser) OperationDefinition() error { return nil }
 
 func (p *Parser) FragmentDefinition() error { return nil }
