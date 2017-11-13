@@ -13,6 +13,7 @@ import (
 type Lexer struct {
 	scanner *bufio.Scanner
 	current rune
+	line    int
 }
 
 // NewLexer returns a new Lexer parsing source.
@@ -21,9 +22,15 @@ func NewLexer(source string) *Lexer {
 	scanner.Split(bufio.ScanRunes)
 	lexer := &Lexer{
 		scanner: scanner,
+		line:    1,
 	}
 	lexer.consume()
 	return lexer
+}
+
+// Line returns the line number of current token.
+func (l *Lexer) Line() int {
+	return l.line
 }
 
 // Read consumes and returns a token.
@@ -33,6 +40,9 @@ func (l *Lexer) Read() Token {
 		case '#':
 			l.readComment()
 		case '\uFEFF', '\u0009', '\u0020', '\u000A', '\u000D', ',': // ignored
+			if l.current == '\u000A' { // new line
+				l.line++
+			}
 			l.consume()
 			continue
 		case '!':
@@ -120,7 +130,7 @@ func (l *Lexer) consume() {
 func (l *Lexer) readComment() {
 	l.consume()
 	for l.current != rune(EOF) &&
-		(l.current > '\u001F' || l.current == '\u0009') { // SourceCharacter but not LineTerminator
+		(l.current >= '\u0020' || l.current == '\u0009') { // SourceCharacter but not LineTerminator
 		l.consume()
 	}
 }
@@ -312,37 +322,3 @@ func (l *Lexer) readString() Token {
 	strVal := b.String()
 	return Token{STRING, strVal[1 : len(strVal)-1]}
 }
-
-// // Peek returns a token in ith position from current.
-// func (l *Lexer) Peek(i int) Token {
-// 	tok := TokenEOF
-// 	if l.more(i) {
-// 		tok = l.tokenBuf[i]
-// 	}
-// 	return tok
-// }
-//
-// func (l *Lexer) more(i int) bool {
-// 	for i >= len(l.tokenBuf) {
-// 		if l.hasMore {
-// 			l.readLine()
-// 		} else {
-// 			return false
-// 		}
-// 	}
-// 	return true
-// }
-//
-// func (l *Lexer) readLine() {
-// 	l.hasMore = l.scanner.Scan()
-// 	if l.hasMore {
-// 		line := l.scanner.Text()
-// 		tokens := l.tokenize(line)
-// 		l.tokenBuf = append(l.tokenBuf, tokens...)
-// 	}
-// }
-//
-// func (l *Lexer) tokenize(line string) []Token {
-// 	var tokens []Token
-// 	return tokens
-// }

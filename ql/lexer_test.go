@@ -3,17 +3,15 @@ package ql
 import "testing"
 
 func TestComment(t *testing.T) {
-	comments := []string{
-		`#this is comment`,
-		`# this is comment with space`,
-		`#	this is comment with tab`,
-		`#		this is comment with tabs		`,
+	comments := `#this is comment
+	# this is comment with space
+	#				this is comment with tabs			`
+	lexer := NewLexer(comments)
+	if tok := lexer.Read(); tok != TokenEOF {
+		t.Errorf("returned: %v, expected: %v", tok, TokenEOF)
 	}
-	for _, comment := range comments {
-		lexer := NewLexer(comment)
-		if tok := lexer.Read(); tok != TokenEOF {
-			t.Errorf("returned: %v, expected: %v", tok, TokenEOF)
-		}
+	if lexer.Line() != 3 {
+		t.Errorf("returned line: %d, expected: %d", lexer.Line(), 3)
 	}
 }
 
