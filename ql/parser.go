@@ -133,6 +133,10 @@ func (p *Parser) operationDefinition() error {
 	return p.selectionSet()
 }
 
+func (p *Parser) selectionSet() error {
+	return errors.New("not implemented")
+}
+
 func (p *Parser) variableDefinitions() error {
 	return errors.New("not implemented")
 }
@@ -155,10 +159,6 @@ func (p *Parser) match(k Kind) bool {
 
 func (p *Parser) consume() {
 	p.lookAhead = p.lexer.Read()
-}
-
-func (p *Parser) selectionSet() error {
-	return errors.New("not implemented")
 }
 
 func (p *Parser) fragmentDefinition() error {
