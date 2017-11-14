@@ -8,8 +8,7 @@ import (
 	"strings"
 )
 
-// Lexer converts the GraphQL source text into tokens. This is an LL(1) lexical
-// scanner based on Dr. Terence Parr's "Language Implementation Patterns".
+// Lexer converts the GraphQL source text into tokens.
 type Lexer struct {
 	scanner *bufio.Scanner
 	current rune
