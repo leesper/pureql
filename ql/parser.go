@@ -43,34 +43,55 @@ func ParseOperation(oper string) error {
 
 // Parser converts GraphQL source into AST.
 type Parser struct {
-	lexer     *Lexer
-	lookAhead Token
+	input      *Lexer
+	lookAheads []Token
+	curr       int
 }
 
-// NewParser returns a new Parser.
-func NewParser(l *Lexer) *Parser {
-	return &Parser{lexer: l}
+// NewParser returns a new Parser, it returns nil if lexer nil or k <= 1.
+func NewParser(l *Lexer, k int) *Parser {
+	if l == nil || k <= 1 {
+		return nil
+	}
+
+	p := &Parser{
+		input:      l,
+		lookAheads: make([]Token, k),
+	}
+
+	for i := 0; i < k; i++ {
+		p.consume()
+	}
+
+	return p
 }
 
 // ParseDocument returns ast.Document.
 func (p *Parser) ParseDocument() error {
-	if p.lexer == nil {
-		return errors.New("lexer nil")
+	if p == nil {
+		return errors.New("parser nil")
 	}
-	p.lookAhead = p.lexer.Read()
 
 	err := p.definition()
 	if err != nil {
 		return err
 	}
 
-	for p.lookAhead != TokenEOF {
+	for p.lookAhead(1) != TokenEOF {
 		err = p.definition()
 		if err != nil {
 			return err
 		}
 	}
+
 	return nil
+}
+
+func (p *Parser) definition() error {
+	if p.lookAhead(1).Kind == FRAGMENT {
+		return p.fragmentDefinition()
+	}
+	return p.operationDefinition()
 }
 
 // ParseSchema returns ast.Schema.
@@ -83,48 +104,36 @@ func (p *Parser) ParseOperation(oper string) error {
 	return errors.New("not implemented")
 }
 
-func (p *Parser) definition() error {
-	switch p.lookAhead.Kind {
-	case QUERY, MUTATION, LBRACE:
-		return p.operationDefinition()
-	case FRAGMENT:
-		return p.fragmentDefinition()
-	default:
-		expect := fmt.Sprintf("%s/%s/%s", tokens[QUERY], tokens[MUTATION], tokens[LBRACE])
-		return ErrBadParse{
-			line:   p.lexer.Line(),
-			expect: expect,
-			found:  p.lookAhead,
-		}
-	}
-}
-
 func (p *Parser) operationDefinition() error {
-	if p.lookAhead.Kind == LBRACE {
+	if p.lookAhead(1).Kind == LBRACE {
 		return p.selectionSet()
 	}
 
-	if !p.match(QUERY) {
-		if !p.match(MUTATION) {
-			expect := fmt.Sprintf("%s/%s", tokens[QUERY], tokens[MUTATION])
-			return ErrBadParse{
-				line:   p.lexer.Line(),
-				expect: expect,
-				found:  p.lookAhead,
-			}
+	// TODO: subscription
+	if p.lookAhead(1).Kind == QUERY {
+		p.match(QUERY)
+	} else if p.lookAhead(1).Kind == MUTATION {
+		p.match(MUTATION)
+	} else {
+		return ErrBadParse{
+			line:   p.input.Line(),
+			expect: fmt.Sprintf("%s or %s", tokens[QUERY], tokens[MUTATION]),
+			found:  p.lookAhead(1),
 		}
 	}
 
-	p.match(NAME)
+	if p.lookAhead(1).Kind == NAME {
+		p.match(NAME)
+	}
 
 	var err error
-	if p.lookAhead.Kind == LPAREN {
+	if p.lookAhead(1).Kind == LPAREN {
 		if err = p.variableDefinitions(); err != nil {
 			return err
 		}
 	}
 
-	for p.lookAhead.Kind == AT {
+	if p.lookAhead(1).Kind == AT {
 		if err = p.directives(); err != nil {
 			return err
 		}
@@ -133,36 +142,489 @@ func (p *Parser) operationDefinition() error {
 	return p.selectionSet()
 }
 
-func (p *Parser) selectionSet() error {
+func (p *Parser) variableDefinitions() error {
+	err := p.match(LPAREN)
+	if err != nil {
+		return err
+	}
+
+	if err = p.variableDefinition(); err != nil {
+		return err
+	}
+
+	if err = p.match(RPAREN); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (p *Parser) variableDefinition() error {
+	err := p.variable()
+	if err != nil {
+		return err
+	}
+
+	if err = p.match(COLON); err != nil {
+		return err
+	}
+
+	if err = p.types(); err != nil {
+		return err
+	}
+
+	if p.lookAhead(1).Kind == EQL {
+		return p.defaultValue()
+	}
+
+	return nil
+}
+
+func (p *Parser) types() error {
+	var err error
+	if p.lookAhead(1).Kind == NAME {
+		if err = p.namedType(); err != nil {
+			return err
+		}
+	} else {
+		if err = p.listType(); err != nil {
+			return err
+		}
+	}
+
+	// non-null
+	if p.lookAhead(1).Kind == BANG {
+		return p.match(BANG)
+	}
+
+	return nil
+}
+
+func (p *Parser) namedType() error {
+	return p.match(NAME)
+}
+
+func (p *Parser) listType() error {
+	err := p.match(LBRACK)
+	if err != nil {
+		return err
+	}
+
+	if err = p.types(); err != nil {
+		return err
+	}
+
+	if err = p.match(RBRACK); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (p *Parser) defaultValue() error {
+	err := p.match(EQL)
+	if err != nil {
+		return err
+	}
+
+	if err = p.valueConst(); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (p *Parser) valueConst() error {
+	switch p.lookAhead(1).Kind {
+	case INT:
+		return p.match(INT)
+	case FLOAT:
+		return p.match(FLOAT)
+	case STRING:
+		return p.match(STRING)
+	case NAME:
+		text := p.lookAhead(1).Text
+		if text == "true" || text == "false" {
+			return p.booleanValue()
+		} else if text == "null" {
+			return p.nullValue()
+		}
+		return p.enumValue()
+	case LBRACK:
+		return p.listValueConst()
+	case LBRACE:
+		return p.objectValueConst()
+	default:
+		expect := fmt.Sprintf("%s/%s/%s/%s/%s/%s/%s",
+			tokens[INT], tokens[FLOAT], tokens[STRING], tokens[NAME],
+			tokens[DOLLAR], tokens[LBRACK], tokens[LBRACE])
+		return ErrBadParse{
+			line:   p.input.Line(),
+			expect: expect,
+			found:  p.lookAhead(1),
+		}
+	}
+}
+
+func (p *Parser) listValueConst() error {
+	err := p.match(LBRACK)
+	if err != nil {
+		return err
+	}
+
+	if p.lookAhead(1).Kind == RBRACK {
+		return p.match(RBRACK)
+	}
+
+	if err = p.valueConst(); err != nil {
+		return err
+	}
+
+	for p.lookAhead(1).Kind != RBRACK {
+		if err = p.value(); err != nil {
+			return err
+		}
+	}
+
+	return p.match(RBRACK)
+}
+
+func (p *Parser) objectValueConst() error {
+	err := p.match(LBRACE)
+	if err != nil {
+		return err
+	}
+
+	if p.lookAhead(1).Kind == RBRACE {
+		return p.match(RBRACE)
+	}
+
+	if err = p.objectFieldConst(); err != nil {
+		return err
+	}
+
+	for p.lookAhead(1).Kind != RBRACE {
+		if err = p.objectFieldConst(); err != nil {
+			return err
+		}
+	}
+
+	return p.match(RBRACE)
+}
+
+func (p *Parser) objectFieldConst() error {
+	err := p.match(NAME)
+	if err != nil {
+		return err
+	}
+
+	if err = p.match(COLON); err != nil {
+		return err
+	}
+
+	return p.valueConst()
+}
+
+func (p *Parser) nonNullType() error {
 	return errors.New("not implemented")
 }
 
-func (p *Parser) variableDefinitions() error {
+func (p *Parser) selectionSet() error {
+	err := p.match(LBRACE)
+	if err != nil {
+		return err
+	}
+
+	if err = p.selection(); err != nil {
+		return err
+	}
+	for p.lookAhead(1).Kind != RBRACE {
+		if err = p.selection(); err != nil {
+			return err
+		}
+	}
+
+	if err = p.match(RBRACE); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (p *Parser) selection() error {
+	if p.lookAhead(1).Kind == SPREAD {
+		if p.lookAhead(2).Kind == ON {
+			return p.inlineFragment()
+		}
+		return p.fragmentSpread()
+	}
+
+	return p.field()
+}
+
+func (p *Parser) field() error {
+	var err error
+	if p.lookAhead(1).Kind == NAME && p.lookAhead(2).Kind == COLON {
+		if err = p.alias(); err != nil {
+			return err
+		}
+	}
+
+	if err = p.match(NAME); err != nil {
+		return err
+	}
+
+	if p.lookAhead(1).Kind == LPAREN {
+		if err = p.arguments(); err != nil {
+			return err
+		}
+	}
+
+	if p.lookAhead(1).Kind == AT {
+		if err = p.directives(); err != nil {
+			return err
+		}
+	}
+
+	if p.lookAhead(1).Kind == LBRACE {
+		if err = p.selectionSet(); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (p *Parser) fragmentSpread() error {
 	return errors.New("not implemented")
+}
+
+func (p *Parser) inlineFragment() error {
+	return errors.New("not implemented")
+}
+
+func (p *Parser) typeCondition() error {
+	return errors.New("not implemented")
+}
+
+func (p *Parser) alias() error {
+	err := p.match(NAME)
+	if err != nil {
+		return err
+	}
+
+	if err = p.match(COLON); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (p *Parser) arguments() error {
+	err := p.match(LPAREN)
+	if err != nil {
+		return err
+	}
+
+	if err = p.argument(); err != nil {
+		return err
+	}
+
+	for p.lookAhead(1).Kind != RPAREN {
+		if err = p.argument(); err != nil {
+			return err
+		}
+	}
+
+	if err = p.match(RPAREN); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (p *Parser) argument() error {
+	err := p.match(NAME)
+	if err != nil {
+		return err
+	}
+
+	if err = p.match(COLON); err != nil {
+		return err
+	}
+
+	return p.value()
+}
+
+func (p *Parser) value() error {
+	switch p.lookAhead(1).Kind {
+	case INT:
+		return p.match(INT)
+	case FLOAT:
+		return p.match(FLOAT)
+	case STRING:
+		return p.match(STRING)
+	case NAME:
+		text := p.lookAhead(1).Text
+		if text == "true" || text == "false" {
+			return p.booleanValue()
+		} else if text == "null" {
+			return p.nullValue()
+		}
+		return p.enumValue()
+	case DOLLAR:
+		return p.variable()
+	case LBRACK:
+		return p.listValue()
+	case LBRACE:
+		return p.objectValue()
+	default:
+		expect := fmt.Sprintf("%s/%s/%s/%s/%s/%s/%s",
+			tokens[INT], tokens[FLOAT], tokens[STRING], tokens[NAME],
+			tokens[DOLLAR], tokens[LBRACK], tokens[LBRACE])
+		return ErrBadParse{
+			line:   p.input.Line(),
+			expect: expect,
+			found:  p.lookAhead(1),
+		}
+	}
+}
+
+func (p *Parser) variable() error {
+	err := p.match(DOLLAR)
+	if err != nil {
+		return err
+	}
+	if err = p.match(NAME); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (p *Parser) booleanValue() error {
+	return p.match(NAME)
+}
+
+func (p *Parser) nullValue() error {
+	return p.match(NAME)
+}
+
+func (p *Parser) enumValue() error {
+	return p.match(NAME)
+}
+
+func (p *Parser) listValue() error {
+	err := p.match(LBRACK)
+	if err != nil {
+		return err
+	}
+
+	if p.lookAhead(1).Kind == RBRACK {
+		return p.match(RBRACK)
+	}
+
+	if err = p.value(); err != nil {
+		return err
+	}
+
+	for p.lookAhead(1).Kind != RBRACK {
+		if err = p.value(); err != nil {
+			return err
+		}
+	}
+
+	return p.match(RBRACK)
+}
+
+func (p *Parser) objectValue() error {
+	err := p.match(LBRACE)
+	if err != nil {
+		return err
+	}
+
+	if p.lookAhead(1).Kind == RBRACE {
+		return p.match(RBRACE)
+	}
+
+	if err = p.objectField(); err != nil {
+		return err
+	}
+
+	for p.lookAhead(1).Kind != RBRACE {
+		if err = p.objectField(); err != nil {
+			return err
+		}
+	}
+
+	return p.match(RBRACE)
+}
+
+func (p *Parser) objectField() error {
+	err := p.match(NAME)
+	if err != nil {
+		return err
+	}
+
+	if err = p.match(COLON); err != nil {
+		return err
+	}
+
+	return p.value()
 }
 
 func (p *Parser) directives() error {
-	return errors.New("not implemented")
+	err := p.directive()
+	if err != nil {
+		return err
+	}
+
+	for p.lookAhead(1) != TokenEOF {
+		if err = p.directive(); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func (p *Parser) directive() error {
-	return errors.New("not implemented")
-}
-
-func (p *Parser) match(k Kind) bool {
-	if p.lookAhead.Kind == k {
-		p.consume()
-		return true
+	err := p.match(AT)
+	if err != nil {
+		return err
 	}
-	return false
-}
 
-func (p *Parser) consume() {
-	p.lookAhead = p.lexer.Read()
+	if err = p.match(NAME); err != nil {
+		return err
+	}
+
+	if p.lookAhead(1).Kind == LPAREN {
+		return p.arguments()
+	}
+
+	return nil
 }
 
 func (p *Parser) fragmentDefinition() error {
 	return errors.New("not implemented")
+}
+
+func (p *Parser) lookAhead(i int) Token {
+	return p.lookAheads[(p.curr+i-1)%len(p.lookAheads)]
+}
+
+func (p *Parser) match(k Kind) error {
+	if p.lookAhead(1).Kind == k {
+		p.consume()
+		return nil
+	}
+	return ErrBadParse{
+		line:   p.input.Line(),
+		expect: tokens[k],
+		found:  p.lookAhead(1),
+	}
+}
+
+func (p *Parser) consume() {
+	p.lookAheads[p.curr] = p.input.Read()
+	p.curr = (p.curr + 1) % len(p.lookAheads)
 }
 
 // Parse parses the tokens, it returns error if something goes wrong.
@@ -233,89 +695,5 @@ func schemaDefinition() error {
 }
 
 func document() error {
-	return errors.New("not implemented")
-}
-
-func selection() error {
-	return errors.New("not implemented")
-}
-
-func field() error {
-	return errors.New("not implemented")
-}
-
-func fragmentSpread() error {
-	return errors.New("not implemented")
-}
-
-func inlineFragment() error {
-	return errors.New("not implemented")
-}
-
-func alias() error {
-	return errors.New("not implemented")
-}
-
-func arguments() error {
-	return errors.New("not implemented")
-}
-
-func argument() error {
-	return errors.New("not implemented")
-}
-
-func typeCondition() error {
-	return errors.New("not implemented")
-}
-
-func value() error {
-	return errors.New("not implemented")
-}
-
-func variable() error {
-	return errors.New("not implemented")
-}
-
-func booleanValue() error {
-	return errors.New("not implemented")
-}
-
-func nullValue() error {
-	return errors.New("not implemented")
-}
-
-func enumValue() error {
-	return errors.New("not implemented")
-}
-
-func listValue() error {
-	return errors.New("not implemented")
-}
-
-func objectValue() error {
-	return errors.New("not implemented")
-}
-
-func objectField() error {
-	return errors.New("not implemented")
-}
-
-func defaultValue() error {
-	return errors.New("not implemented")
-}
-
-func types() error {
-	return errors.New("not implemented")
-}
-
-func namedType() error {
-	return errors.New("not implemented")
-}
-
-func listType() error {
-	return errors.New("not implemented")
-}
-
-func nonNullType() error {
 	return errors.New("not implemented")
 }
