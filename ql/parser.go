@@ -116,13 +116,13 @@ func (p *parser) schema() error {
 	case TYPE:
 		return p.typeDefinition()
 	case EXTEND:
-		return p.typeExtend()
+		return p.extendDefinition()
 	case DIRECTIVE:
 		return p.directiveDefinition()
 	case SCHEMA:
 		return p.schemaDefinition()
 	case ENUM:
-		return p.enumType()
+		return p.enumDefinition()
 	default:
 		return p.unionDefinition()
 	}
@@ -967,7 +967,7 @@ func (p *parser) implementsInterfaces() error {
 	return nil
 }
 
-func (p *parser) typeExtend() error {
+func (p *parser) extendDefinition() error {
 	err := p.match(EXTEND)
 	if err != nil {
 		return err
@@ -1074,7 +1074,7 @@ func (p *parser) operationTypeDefinition() error {
 	return p.match(NAME)
 }
 
-func (p *parser) enumType() error {
+func (p *parser) enumDefinition() error {
 	err := p.match(ENUM)
 	if err != nil {
 		return err
