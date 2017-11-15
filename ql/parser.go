@@ -725,26 +725,402 @@ func Parse() error {
 	return nil
 }
 
-func interfaceDefinition() error {
-	return errors.New("not implemented")
+func (p *Parser) interfaceDefinition() error {
+	err := p.match(INTERFACE)
+	if err != nil {
+		return err
+	}
+
+	if err = p.match(NAME); err != nil {
+		return err
+	}
+
+	if p.lookAhead(1).Kind == AT {
+		if err = p.directives(); err != nil {
+			return err
+		}
+	}
+
+	if err = p.match(LBRACE); err != nil {
+		return err
+	}
+
+	if err = p.fieldDefinition(); err != nil {
+		return err
+	}
+
+	for p.lookAhead(1).Kind != RBRACE {
+		if err = p.fieldDefinition(); err != nil {
+			return err
+		}
+	}
+
+	return p.match(RBRACE)
 }
 
-func scalarDefinition() error {
-	return errors.New("not implemented")
+func (p *Parser) fieldDefinition() error {
+	err := p.match(NAME)
+	if err != nil {
+		return err
+	}
+
+	if p.lookAhead(1).Kind == LPAREN {
+		if err = p.argumentsDefinition(); err != nil {
+			return err
+		}
+	}
+
+	if err = p.match(COLON); err != nil {
+		return err
+	}
+
+	if err = p.types(); err != nil {
+		return err
+	}
+
+	if p.lookAhead(1).Kind == AT {
+		if err = p.directives(); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
-func inputObjectDefinition() error {
-	return errors.New("not implemented")
+func (p *Parser) argumentsDefinition() error {
+	err := p.match(LPAREN)
+	if err != nil {
+		return err
+	}
+
+	if err = p.inputValueDefinition(); err != nil {
+		return err
+	}
+
+	for p.lookAhead(1).Kind != RPAREN {
+		if err = p.inputValueDefinition(); err != nil {
+			return err
+		}
+	}
+
+	return p.match(RPAREN)
 }
 
-func typeDefinition() error {
-	return errors.New("not implemented")
+func (p *Parser) inputValueDefinition() error {
+	err := p.match(NAME)
+	if err != nil {
+		return err
+	}
+
+	if err = p.match(COLON); err != nil {
+		return err
+	}
+
+	if err = p.types(); err != nil {
+		return err
+	}
+
+	if p.lookAhead(1).Kind == EQL {
+		if err = p.defaultValue(); err != nil {
+			return err
+		}
+	}
+
+	if p.lookAhead(1).Kind == AT {
+		if err = p.directives(); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
-func schemaDefinition() error {
-	return errors.New("not implemented")
+func (p *Parser) scalarDefinition() error {
+	err := p.match(SCALAR)
+	if err != nil {
+		return err
+	}
+
+	if err = p.match(NAME); err != nil {
+		return err
+	}
+
+	if p.lookAhead(1).Kind == AT {
+		if err = p.directives(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
-func document() error {
-	return errors.New("not implemented")
+func (p *Parser) inputObjectDefinition() error {
+	err := p.match(INPUT)
+	if err != nil {
+		return err
+	}
+
+	if err = p.match(NAME); err != nil {
+		return err
+	}
+
+	if p.lookAhead(1).Kind == AT {
+		if err = p.directives(); err != nil {
+			return err
+		}
+	}
+
+	if err = p.match(LBRACE); err != nil {
+		return err
+	}
+
+	if err = p.inputValueDefinition(); err != nil {
+		return err
+	}
+
+	for p.lookAhead(1).Kind != RBRACE {
+		if err = p.inputValueDefinition(); err != nil {
+			return err
+		}
+	}
+
+	return p.match(RBRACE)
+}
+
+func (p *Parser) typeDefinition() error {
+	err := p.match(TYPE)
+	if err != nil {
+		return err
+	}
+
+	if err = p.match(NAME); err != nil {
+		return err
+	}
+
+	if p.lookAhead(1).Kind == IMPLEMENTS {
+		if err = p.implementsInterfaces(); err != nil {
+			return err
+		}
+	}
+
+	if p.lookAhead(1).Kind == AT {
+		if err = p.directives(); err != nil {
+			return err
+		}
+	}
+
+	if err = p.match(LBRACE); err != nil {
+		return err
+	}
+
+	if err = p.fieldDefinition(); err != nil {
+		return err
+	}
+
+	for p.lookAhead(1).Kind != RBRACE {
+		if err = p.fieldDefinition(); err != nil {
+			return err
+		}
+	}
+	return p.match(RBRACE)
+}
+
+func (p *Parser) implementsInterfaces() error {
+	err := p.match(IMPLEMENTS)
+	if err != nil {
+		return err
+	}
+
+	if err = p.match(NAME); err != nil {
+		return err
+	}
+
+	for p.lookAhead(1) != TokenEOF {
+		if err = p.match(NAME); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (p *Parser) typeExtend() error {
+	err := p.match(EXTEND)
+	if err != nil {
+		return err
+	}
+
+	return p.typeDefinition()
+}
+
+func (p *Parser) directiveDefinition() error {
+	err := p.match(DIRECTIVE)
+	if err != nil {
+		return err
+	}
+
+	if err = p.match(AT); err != nil {
+		return err
+	}
+
+	if err = p.match(NAME); err != nil {
+		return err
+	}
+
+	if p.lookAhead(1).Kind == LPAREN {
+		if err = p.argumentsDefinition(); err != nil {
+			return err
+		}
+	}
+
+	if err = p.match(ON); err != nil {
+		return err
+	}
+
+	return p.directiveLocations()
+}
+
+func (p *Parser) directiveLocations() error {
+	err := p.directiveLocation()
+	if err != nil {
+		return err
+	}
+
+	for p.lookAhead(1).Kind == PIPE {
+		if err = p.match(PIPE); err != nil {
+			return err
+		}
+		if err = p.directiveLocation(); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (p *Parser) directiveLocation() error {
+	return p.match(NAME)
+}
+
+func (p *Parser) schemaDefinition() error {
+	err := p.match(SCHEMA)
+	if err != nil {
+		return err
+	}
+
+	if p.lookAhead(1).Kind == AT {
+		if err = p.directives(); err != nil {
+			return err
+		}
+	}
+
+	if err = p.match(LBRACE); err != nil {
+		return err
+	}
+
+	if err = p.operationTypeDefinition(); err != nil {
+		return err
+	}
+
+	for p.lookAhead(1).Kind != RBRACE {
+		if err = p.operationTypeDefinition(); err != nil {
+			return err
+		}
+	}
+
+	return p.match(RBRACE)
+}
+
+func (p *Parser) operationTypeDefinition() error {
+	if p.lookAhead(1).Kind == QUERY {
+		p.match(QUERY)
+	} else if p.lookAhead(1).Kind == MUTATION {
+		p.match(MUTATION)
+	} else {
+		return ErrBadParse{
+			line:   p.input.Line(),
+			expect: fmt.Sprintf("%s or %s", tokens[QUERY], tokens[MUTATION]),
+			found:  p.lookAhead(1),
+		}
+	}
+
+	if err := p.match(COLON); err != nil {
+		return err
+	}
+
+	return p.match(NAME)
+}
+
+func (p *Parser) enumType() error {
+	err := p.match(ENUM)
+	if err != nil {
+		return err
+	}
+
+	if err = p.match(NAME); err != nil {
+		return err
+	}
+
+	if p.lookAhead(1).Kind == AT {
+		if err = p.directives(); err != nil {
+			return err
+		}
+	}
+
+	if err = p.match(LBRACE); err != nil {
+		return err
+	}
+
+	if err = p.enumValue(); err != nil {
+		return err
+	}
+
+	for p.lookAhead(1).Kind == RBRACE {
+		if err = p.enumValue(); err != nil {
+			return err
+		}
+	}
+
+	return p.match(RBRACE)
+}
+
+func (p *Parser) unionDefinition() error {
+	err := p.match(UNION)
+	if err != nil {
+		return err
+	}
+
+	if err = p.match(NAME); err != nil {
+		return err
+	}
+
+	if p.lookAhead(1).Kind == AT {
+		if err = p.directives(); err != nil {
+			return err
+		}
+	}
+
+	if err = p.match(EQL); err != nil {
+		return err
+	}
+
+	return p.unionMembers()
+}
+
+func (p *Parser) unionMembers() error {
+	err := p.match(NAME)
+	if err != nil {
+		return err
+	}
+
+	for p.lookAhead(1).Kind == PIPE {
+		if err = p.match(PIPE); err != nil {
+			return err
+		}
+
+		if err = p.match(NAME); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
