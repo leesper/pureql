@@ -26,35 +26,29 @@ func (e ErrBadParse) Error() string {
 	return fmt.Sprintf("line %d: expecting %s, found %s", e.line, e.expect, e.found)
 }
 
-// ParseDocument returns ast.Document using DefaultParser.
+// ParseDocument returns ast.Document.
 func ParseDocument(document string) error {
-	return errors.New("not implemented")
+	return newParser(NewLexer(document), 2).parseDocument()
 }
 
-// ParseSchema returns ast.Schema using DefaultParser.
+// ParseSchema returns ast.Schema.
 func ParseSchema(schema string) error {
-	return errors.New("not implemented")
-}
-
-// ParseOperation returns ast.Operation using DefaultParser.
-func ParseOperation(oper string) error {
-	return errors.New("not implemented")
+	return newParser(NewLexer(schema), 2).parseSchema()
 }
 
 // Parser converts GraphQL source into AST.
-type Parser struct {
+type parser struct {
 	input      *Lexer
 	lookAheads []Token
 	curr       int
 }
 
-// NewParser returns a new Parser, it returns nil if lexer nil or k <= 1.
-func NewParser(l *Lexer, k int) *Parser {
+func newParser(l *Lexer, k int) *parser {
 	if l == nil || k <= 1 {
 		return nil
 	}
 
-	p := &Parser{
+	p := &parser{
 		input:      l,
 		lookAheads: make([]Token, k),
 	}
@@ -66,8 +60,7 @@ func NewParser(l *Lexer, k int) *Parser {
 	return p
 }
 
-// ParseDocument returns ast.Document.
-func (p *Parser) ParseDocument() error {
+func (p *parser) parseDocument() error {
 	if p == nil {
 		return errors.New("parser nil")
 	}
@@ -83,28 +76,59 @@ func (p *Parser) ParseDocument() error {
 			return err
 		}
 	}
-
 	return nil
 }
 
-func (p *Parser) definition() error {
+func (p *parser) definition() error {
 	if p.lookAhead(1).Kind == FRAGMENT {
 		return p.fragmentDefinition()
 	}
 	return p.operationDefinition()
 }
 
-// ParseSchema returns ast.Schema.
-func (p *Parser) ParseSchema(schema string) error {
-	return errors.New("not implemented")
+func (p *parser) parseSchema() error {
+	if p == nil {
+		return errors.New("parser nil")
+	}
+
+	err := p.schema()
+	if err != nil {
+		return err
+	}
+
+	for p.lookAhead(1) != TokenEOF {
+		err = p.schema()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
-// ParseOperation returns ast.Operation.
-func (p *Parser) ParseOperation(oper string) error {
-	return errors.New("not implemented")
+func (p *parser) schema() error {
+	switch p.lookAhead(1).Kind {
+	case INTERFACE:
+		return p.interfaceDefinition()
+	case SCALAR:
+		return p.scalarDefinition()
+	case INPUT:
+		return p.inputObjectDefinition()
+	case TYPE:
+		return p.typeDefinition()
+	case EXTEND:
+		return p.typeExtend()
+	case DIRECTIVE:
+		return p.directiveDefinition()
+	case SCHEMA:
+		return p.schemaDefinition()
+	case ENUM:
+		return p.enumType()
+	default:
+		return p.unionDefinition()
+	}
 }
 
-func (p *Parser) operationDefinition() error {
+func (p *parser) operationDefinition() error {
 	if p.lookAhead(1).Kind == LBRACE {
 		return p.selectionSet()
 	}
@@ -142,7 +166,7 @@ func (p *Parser) operationDefinition() error {
 	return p.selectionSet()
 }
 
-func (p *Parser) variableDefinitions() error {
+func (p *parser) variableDefinitions() error {
 	err := p.match(LPAREN)
 	if err != nil {
 		return err
@@ -159,7 +183,7 @@ func (p *Parser) variableDefinitions() error {
 	return nil
 }
 
-func (p *Parser) variableDefinition() error {
+func (p *parser) variableDefinition() error {
 	err := p.variable()
 	if err != nil {
 		return err
@@ -180,7 +204,7 @@ func (p *Parser) variableDefinition() error {
 	return nil
 }
 
-func (p *Parser) types() error {
+func (p *parser) types() error {
 	var err error
 	if p.lookAhead(1).Kind == NAME {
 		if err = p.namedType(); err != nil {
@@ -200,11 +224,11 @@ func (p *Parser) types() error {
 	return nil
 }
 
-func (p *Parser) namedType() error {
+func (p *parser) namedType() error {
 	return p.match(NAME)
 }
 
-func (p *Parser) listType() error {
+func (p *parser) listType() error {
 	err := p.match(LBRACK)
 	if err != nil {
 		return err
@@ -221,7 +245,7 @@ func (p *Parser) listType() error {
 	return nil
 }
 
-func (p *Parser) defaultValue() error {
+func (p *parser) defaultValue() error {
 	err := p.match(EQL)
 	if err != nil {
 		return err
@@ -234,7 +258,7 @@ func (p *Parser) defaultValue() error {
 	return nil
 }
 
-func (p *Parser) valueConst() error {
+func (p *parser) valueConst() error {
 	switch p.lookAhead(1).Kind {
 	case INT:
 		return p.match(INT)
@@ -266,7 +290,7 @@ func (p *Parser) valueConst() error {
 	}
 }
 
-func (p *Parser) listValueConst() error {
+func (p *parser) listValueConst() error {
 	err := p.match(LBRACK)
 	if err != nil {
 		return err
@@ -289,7 +313,7 @@ func (p *Parser) listValueConst() error {
 	return p.match(RBRACK)
 }
 
-func (p *Parser) objectValueConst() error {
+func (p *parser) objectValueConst() error {
 	err := p.match(LBRACE)
 	if err != nil {
 		return err
@@ -312,7 +336,7 @@ func (p *Parser) objectValueConst() error {
 	return p.match(RBRACE)
 }
 
-func (p *Parser) objectFieldConst() error {
+func (p *parser) objectFieldConst() error {
 	err := p.match(NAME)
 	if err != nil {
 		return err
@@ -325,11 +349,11 @@ func (p *Parser) objectFieldConst() error {
 	return p.valueConst()
 }
 
-func (p *Parser) nonNullType() error {
+func (p *parser) nonNullType() error {
 	return errors.New("not implemented")
 }
 
-func (p *Parser) selectionSet() error {
+func (p *parser) selectionSet() error {
 	err := p.match(LBRACE)
 	if err != nil {
 		return err
@@ -350,7 +374,7 @@ func (p *Parser) selectionSet() error {
 	return nil
 }
 
-func (p *Parser) selection() error {
+func (p *parser) selection() error {
 	if p.lookAhead(1).Kind == SPREAD {
 		if p.lookAhead(2).Kind == ON {
 			return p.inlineFragment()
@@ -361,7 +385,7 @@ func (p *Parser) selection() error {
 	return p.field()
 }
 
-func (p *Parser) field() error {
+func (p *parser) field() error {
 	var err error
 	if p.lookAhead(1).Kind == NAME && p.lookAhead(2).Kind == COLON {
 		if err = p.alias(); err != nil {
@@ -394,7 +418,7 @@ func (p *Parser) field() error {
 	return nil
 }
 
-func (p *Parser) fragmentSpread() error {
+func (p *parser) fragmentSpread() error {
 	err := p.match(SPREAD)
 	if err != nil {
 		return err
@@ -411,7 +435,7 @@ func (p *Parser) fragmentSpread() error {
 	return nil
 }
 
-func (p *Parser) inlineFragment() error {
+func (p *parser) inlineFragment() error {
 	err := p.match(SPREAD)
 	if err != nil {
 		return err
@@ -430,7 +454,7 @@ func (p *Parser) inlineFragment() error {
 	return p.selectionSet()
 }
 
-func (p *Parser) typeCondition() error {
+func (p *parser) typeCondition() error {
 	err := p.match(ON)
 	if err != nil {
 		return err
@@ -438,7 +462,7 @@ func (p *Parser) typeCondition() error {
 	return p.namedType()
 }
 
-func (p *Parser) alias() error {
+func (p *parser) alias() error {
 	err := p.match(NAME)
 	if err != nil {
 		return err
@@ -451,7 +475,7 @@ func (p *Parser) alias() error {
 	return nil
 }
 
-func (p *Parser) arguments() error {
+func (p *parser) arguments() error {
 	err := p.match(LPAREN)
 	if err != nil {
 		return err
@@ -473,7 +497,7 @@ func (p *Parser) arguments() error {
 	return nil
 }
 
-func (p *Parser) argument() error {
+func (p *parser) argument() error {
 	err := p.match(NAME)
 	if err != nil {
 		return err
@@ -486,7 +510,7 @@ func (p *Parser) argument() error {
 	return p.value()
 }
 
-func (p *Parser) value() error {
+func (p *parser) value() error {
 	switch p.lookAhead(1).Kind {
 	case INT:
 		return p.match(INT)
@@ -520,7 +544,7 @@ func (p *Parser) value() error {
 	}
 }
 
-func (p *Parser) variable() error {
+func (p *parser) variable() error {
 	err := p.match(DOLLAR)
 	if err != nil {
 		return err
@@ -531,19 +555,19 @@ func (p *Parser) variable() error {
 	return nil
 }
 
-func (p *Parser) booleanValue() error {
+func (p *parser) booleanValue() error {
 	return p.match(NAME)
 }
 
-func (p *Parser) nullValue() error {
+func (p *parser) nullValue() error {
 	return p.match(NAME)
 }
 
-func (p *Parser) enumValue() error {
+func (p *parser) enumValue() error {
 	return p.match(NAME)
 }
 
-func (p *Parser) listValue() error {
+func (p *parser) listValue() error {
 	err := p.match(LBRACK)
 	if err != nil {
 		return err
@@ -566,7 +590,7 @@ func (p *Parser) listValue() error {
 	return p.match(RBRACK)
 }
 
-func (p *Parser) objectValue() error {
+func (p *parser) objectValue() error {
 	err := p.match(LBRACE)
 	if err != nil {
 		return err
@@ -589,7 +613,7 @@ func (p *Parser) objectValue() error {
 	return p.match(RBRACE)
 }
 
-func (p *Parser) objectField() error {
+func (p *parser) objectField() error {
 	err := p.match(NAME)
 	if err != nil {
 		return err
@@ -602,7 +626,7 @@ func (p *Parser) objectField() error {
 	return p.value()
 }
 
-func (p *Parser) directives() error {
+func (p *parser) directives() error {
 	err := p.directive()
 	if err != nil {
 		return err
@@ -617,7 +641,7 @@ func (p *Parser) directives() error {
 	return nil
 }
 
-func (p *Parser) directive() error {
+func (p *parser) directive() error {
 	err := p.match(AT)
 	if err != nil {
 		return err
@@ -634,7 +658,7 @@ func (p *Parser) directive() error {
 	return nil
 }
 
-func (p *Parser) fragmentDefinition() error {
+func (p *parser) fragmentDefinition() error {
 	err := p.match(FRAGMENT)
 	if err != nil {
 		return err
@@ -657,11 +681,11 @@ func (p *Parser) fragmentDefinition() error {
 	return p.selectionSet()
 }
 
-func (p *Parser) lookAhead(i int) Token {
+func (p *parser) lookAhead(i int) Token {
 	return p.lookAheads[(p.curr+i-1)%len(p.lookAheads)]
 }
 
-func (p *Parser) match(k Kind) error {
+func (p *parser) match(k Kind) error {
 	if p.lookAhead(1).Kind == k {
 		p.consume()
 		return nil
@@ -673,7 +697,7 @@ func (p *Parser) match(k Kind) error {
 	}
 }
 
-func (p *Parser) consume() {
+func (p *parser) consume() {
 	p.lookAheads[p.curr] = p.input.Read()
 	p.curr = (p.curr + 1) % len(p.lookAheads)
 }
@@ -725,7 +749,7 @@ func Parse() error {
 	return nil
 }
 
-func (p *Parser) interfaceDefinition() error {
+func (p *parser) interfaceDefinition() error {
 	err := p.match(INTERFACE)
 	if err != nil {
 		return err
@@ -758,7 +782,7 @@ func (p *Parser) interfaceDefinition() error {
 	return p.match(RBRACE)
 }
 
-func (p *Parser) fieldDefinition() error {
+func (p *parser) fieldDefinition() error {
 	err := p.match(NAME)
 	if err != nil {
 		return err
@@ -787,7 +811,7 @@ func (p *Parser) fieldDefinition() error {
 	return nil
 }
 
-func (p *Parser) argumentsDefinition() error {
+func (p *parser) argumentsDefinition() error {
 	err := p.match(LPAREN)
 	if err != nil {
 		return err
@@ -806,7 +830,7 @@ func (p *Parser) argumentsDefinition() error {
 	return p.match(RPAREN)
 }
 
-func (p *Parser) inputValueDefinition() error {
+func (p *parser) inputValueDefinition() error {
 	err := p.match(NAME)
 	if err != nil {
 		return err
@@ -835,7 +859,7 @@ func (p *Parser) inputValueDefinition() error {
 	return nil
 }
 
-func (p *Parser) scalarDefinition() error {
+func (p *parser) scalarDefinition() error {
 	err := p.match(SCALAR)
 	if err != nil {
 		return err
@@ -853,7 +877,7 @@ func (p *Parser) scalarDefinition() error {
 	return nil
 }
 
-func (p *Parser) inputObjectDefinition() error {
+func (p *parser) inputObjectDefinition() error {
 	err := p.match(INPUT)
 	if err != nil {
 		return err
@@ -886,7 +910,7 @@ func (p *Parser) inputObjectDefinition() error {
 	return p.match(RBRACE)
 }
 
-func (p *Parser) typeDefinition() error {
+func (p *parser) typeDefinition() error {
 	err := p.match(TYPE)
 	if err != nil {
 		return err
@@ -924,7 +948,7 @@ func (p *Parser) typeDefinition() error {
 	return p.match(RBRACE)
 }
 
-func (p *Parser) implementsInterfaces() error {
+func (p *parser) implementsInterfaces() error {
 	err := p.match(IMPLEMENTS)
 	if err != nil {
 		return err
@@ -943,7 +967,7 @@ func (p *Parser) implementsInterfaces() error {
 	return nil
 }
 
-func (p *Parser) typeExtend() error {
+func (p *parser) typeExtend() error {
 	err := p.match(EXTEND)
 	if err != nil {
 		return err
@@ -952,7 +976,7 @@ func (p *Parser) typeExtend() error {
 	return p.typeDefinition()
 }
 
-func (p *Parser) directiveDefinition() error {
+func (p *parser) directiveDefinition() error {
 	err := p.match(DIRECTIVE)
 	if err != nil {
 		return err
@@ -979,7 +1003,7 @@ func (p *Parser) directiveDefinition() error {
 	return p.directiveLocations()
 }
 
-func (p *Parser) directiveLocations() error {
+func (p *parser) directiveLocations() error {
 	err := p.directiveLocation()
 	if err != nil {
 		return err
@@ -997,11 +1021,11 @@ func (p *Parser) directiveLocations() error {
 	return nil
 }
 
-func (p *Parser) directiveLocation() error {
+func (p *parser) directiveLocation() error {
 	return p.match(NAME)
 }
 
-func (p *Parser) schemaDefinition() error {
+func (p *parser) schemaDefinition() error {
 	err := p.match(SCHEMA)
 	if err != nil {
 		return err
@@ -1030,7 +1054,7 @@ func (p *Parser) schemaDefinition() error {
 	return p.match(RBRACE)
 }
 
-func (p *Parser) operationTypeDefinition() error {
+func (p *parser) operationTypeDefinition() error {
 	if p.lookAhead(1).Kind == QUERY {
 		p.match(QUERY)
 	} else if p.lookAhead(1).Kind == MUTATION {
@@ -1050,7 +1074,7 @@ func (p *Parser) operationTypeDefinition() error {
 	return p.match(NAME)
 }
 
-func (p *Parser) enumType() error {
+func (p *parser) enumType() error {
 	err := p.match(ENUM)
 	if err != nil {
 		return err
@@ -1083,7 +1107,7 @@ func (p *Parser) enumType() error {
 	return p.match(RBRACE)
 }
 
-func (p *Parser) unionDefinition() error {
+func (p *parser) unionDefinition() error {
 	err := p.match(UNION)
 	if err != nil {
 		return err
@@ -1106,7 +1130,7 @@ func (p *Parser) unionDefinition() error {
 	return p.unionMembers()
 }
 
-func (p *Parser) unionMembers() error {
+func (p *parser) unionMembers() error {
 	err := p.match(NAME)
 	if err != nil {
 		return err
