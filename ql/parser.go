@@ -395,15 +395,47 @@ func (p *Parser) field() error {
 }
 
 func (p *Parser) fragmentSpread() error {
-	return errors.New("not implemented")
+	err := p.match(SPREAD)
+	if err != nil {
+		return err
+	}
+
+	if err = p.match(NAME); err != nil {
+		return err
+	}
+
+	if p.lookAhead(1).Kind == AT {
+		return p.directives()
+	}
+
+	return nil
 }
 
 func (p *Parser) inlineFragment() error {
-	return errors.New("not implemented")
+	err := p.match(SPREAD)
+	if err != nil {
+		return err
+	}
+
+	if p.lookAhead(1).Kind == ON {
+		if err = p.typeCondition(); err != nil {
+			return err
+		}
+	}
+
+	if p.lookAhead(1).Kind == AT {
+		return p.directives()
+	}
+
+	return p.selectionSet()
 }
 
 func (p *Parser) typeCondition() error {
-	return errors.New("not implemented")
+	err := p.match(ON)
+	if err != nil {
+		return err
+	}
+	return p.namedType()
 }
 
 func (p *Parser) alias() error {
@@ -603,7 +635,26 @@ func (p *Parser) directive() error {
 }
 
 func (p *Parser) fragmentDefinition() error {
-	return errors.New("not implemented")
+	err := p.match(FRAGMENT)
+	if err != nil {
+		return err
+	}
+
+	if err = p.match(NAME); err != nil {
+		return err
+	}
+
+	if err = p.typeCondition(); err != nil {
+		return err
+	}
+
+	if p.lookAhead(1).Kind == AT {
+		if err = p.directives(); err != nil {
+			return err
+		}
+	}
+
+	return p.selectionSet()
 }
 
 func (p *Parser) lookAhead(i int) Token {
