@@ -6,14 +6,14 @@ import (
 )
 
 // ErrBadToken for invalid token.
-type ErrBadToken struct {
-	line int
-	tok  Token
-}
-
-func (e ErrBadToken) Error() string {
-	return fmt.Sprintf("line %d: bad token %s", e.line, e.tok)
-}
+// type ErrBadToken struct {
+// 	line int
+// 	tok  Token
+// }
+//
+// func (e ErrBadToken) Error() string {
+// 	return fmt.Sprintf("line %d: bad token %s", e.line, e.tok)
+// }
 
 // ErrBadParse for invalid parse.
 type ErrBadParse struct {

@@ -1,110 +1,101 @@
 package ql
 
-// func TestParseBadToken(t *testing.T) {
-// 	parser := NewParser(NewLexer(`
-// 	query _ {
-// 		me {
-// 			id
-// 		}
-// 	}`))
-//
-// 	err := parser.Parse()
-// 	if err == nil {
-// 		t.Error("should return error")
-// 	}
-//
-// 	switch err.(type) {
-// 	case ErrBadToken:
-// 		// that's what we want
-// 	default:
-// 		t.Errorf("expecting ErrBadToken, found %v", err)
-// 	}
-// }
-//
-// func TestQueryShorthand(t *testing.T) {
-// 	parser := NewParser(NewLexer("{ field }"))
-// 	if err := parser.Parse(); err != nil {
-// 		t.Error("parse error", err)
-// 	}
-// }
-//
-// func TestParseInvalids(t *testing.T) {
-// 	parser := NewParser(NewLexer("{"))
-// 	err := parser.Parse()
-// 	if err == nil {
-// 		t.Error("should return error")
-// 	}
-// 	switch err.(type) {
-// 	case ErrBadParse:
-// 		// that's what we want
-// 	default:
-// 		t.Errorf("expecting ErrBadParse, found %v", err)
-// 	}
-//
-// 	parser = NewParser(NewLexer(`
-// 		{ ...MissingOn }
-// 		fragment MissingOn Type
-// 	`))
-// 	err = parser.Parse()
-// 	if err == nil {
-// 		t.Error("should return error")
-// 	}
-// 	switch err.(type) {
-// 	case ErrBadParse:
-// 		// that's what we want
-// 	default:
-// 		t.Errorf("expecting ErrBadParse, found %v", err)
-// 	}
-//
-// 	parser = NewParser(NewLexer(`{ field: {} }`))
-// 	err = parser.Parse()
-// 	if err == nil {
-// 		t.Error("should return error")
-// 	}
-// 	switch err.(type) {
-// 	case ErrBadParse:
-// 		// that's what we want
-// 	default:
-// 		t.Errorf("expecting ErrBadParse, found %v", err)
-// 	}
-//
-// 	parser = NewParser(NewLexer(`notanoperation Foo { field }`))
-// 	err = parser.Parse()
-// 	if err == nil {
-// 		t.Error("should return error")
-// 	}
-// 	switch err.(type) {
-// 	case ErrBadParse:
-// 		// that's what we want
-// 	default:
-// 		t.Errorf("expecting ErrBadParse, found %v", err)
-// 	}
-//
-// 	parser = NewParser(NewLexer("..."))
-// 	err = parser.Parse()
-// 	if err == nil {
-// 		t.Error("should return error")
-// 	}
-// 	switch err.(type) {
-// 	case ErrBadParse:
-// 		// that's what we want
-// 	default:
-// 		t.Errorf("expecting ErrBadParse, found %v", err)
-// 	}
-//
-// 	parser = NewParser(NewLexer("query"))
-// 	err = parser.Parse()
-// 	if err == nil {
-// 		t.Error("should return error")
-// 	}
-// 	switch err.(type) {
-// 	case ErrBadParse:
-// 		// that's what we want
-// 	default:
-// 		t.Errorf("expecting ErrBadParse, found %v", err)
-// 	}
-// }
-//
+import "testing"
+
+func TestParseQuery(t *testing.T) {
+	err := ParseDocument(`
+	query _ {
+		me {
+			id
+		}
+	}`)
+
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestQueryShorthand(t *testing.T) {
+	err := ParseDocument("{ field }")
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestParseInvalids(t *testing.T) {
+	err := ParseDocument("{")
+	if err == nil {
+		t.Errorf("expecting error, found nil")
+	}
+
+	expecting := "line 1: expecting NAME, found <'EOF', EOF>"
+	if err.Error() != expecting {
+		t.Errorf("expecting %s, found %s", expecting, err)
+	}
+
+	err = ParseDocument(`
+{ ...MissingOn }
+fragment MissingOn Type
+`)
+
+	if err == nil {
+		t.Error("expecting error, found nil")
+	}
+
+	expecting = "line 3: expecting on, found <'Type', NAME>"
+	if err.Error() != expecting {
+		t.Errorf("expecting %s, found %s", expecting, err)
+	}
+
+	// parser = NewParser(NewLexer(`{ field: {} }`))
+	// err = parser.Parse()
+	// if err == nil {
+	// 	t.Error("should return error")
+	// }
+	// switch err.(type) {
+	// case ErrBadParse:
+	// 	// that's what we want
+	// default:
+	// 	t.Errorf("expecting ErrBadParse, found %v", err)
+	// }
+	//
+	// parser = NewParser(NewLexer(`notanoperation Foo { field }`))
+	// err = parser.Parse()
+	// if err == nil {
+	// 	t.Error("should return error")
+	// }
+	// switch err.(type) {
+	// case ErrBadParse:
+	// 	// that's what we want
+	// default:
+	// 	t.Errorf("expecting ErrBadParse, found %v", err)
+	// }
+	//
+	// parser = NewParser(NewLexer("..."))
+	// err = parser.Parse()
+	// if err == nil {
+	// 	t.Error("should return error")
+	// }
+	// switch err.(type) {
+	// case ErrBadParse:
+	// 	// that's what we want
+	// default:
+	// 	t.Errorf("expecting ErrBadParse, found %v", err)
+	// }
+	//
+	// parser = NewParser(NewLexer("query"))
+	// err = parser.Parse()
+	// if err == nil {
+	// 	t.Error("should return error")
+	// }
+	// switch err.(type) {
+	// case ErrBadParse:
+	// 	// that's what we want
+	// default:
+	// 	t.Errorf("expecting ErrBadParse, found %v", err)
+	// }
+}
+
 // func TestParseVariableInline(t *testing.T) {
 // 	parser := NewParser(NewLexer(`{ field(complex: { a: { b: [ $var ] } }) }`))
 // 	err := parser.Parse()

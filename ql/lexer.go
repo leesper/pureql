@@ -17,6 +17,7 @@ type Lexer struct {
 
 // NewLexer returns a new Lexer parsing source.
 func NewLexer(source string) *Lexer {
+	source = strings.TrimRight(source, "\n\t\r ")
 	scanner := bufio.NewScanner(strings.NewReader(source))
 	scanner.Split(bufio.ScanRunes)
 	lexer := &Lexer{
