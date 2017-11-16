@@ -237,8 +237,7 @@ func (l *Lexer) readName() Token {
 		l.consume()
 	}
 
-	name := b.String()
-	return Token{lookupName(name), b.String()}
+	return Token{NAME, b.String()}
 }
 
 // '"' ([\u0009\u0020-\uFFFF]|EscapedUnicode|EscapedChar)* '"'
@@ -323,6 +322,7 @@ func (l *Lexer) readString() Token {
 	}
 
 	b.WriteRune('"')
+	l.consume()
 	strVal := b.String()
 	return Token{STRING, strVal[1 : len(strVal)-1]}
 }

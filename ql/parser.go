@@ -80,7 +80,7 @@ func (p *parser) parseDocument() error {
 }
 
 func (p *parser) definition() error {
-	if p.lookAhead(1).Kind == FRAGMENT {
+	if p.lookAhead(1).Text == tokens[FRAGMENT] {
 		return p.fragmentDefinition()
 	}
 	return p.operationDefinition()
@@ -134,15 +134,16 @@ func (p *parser) operationDefinition() error {
 	}
 
 	// TODO: subscription
-	if p.lookAhead(1).Kind == QUERY {
-		p.match(QUERY)
-	} else if p.lookAhead(1).Kind == MUTATION {
-		p.match(MUTATION)
-	} else {
-		return ErrBadParse{
-			line:   p.input.Line(),
-			expect: fmt.Sprintf("%s or %s", tokens[QUERY], tokens[MUTATION]),
-			found:  p.lookAhead(1),
+	var err error
+	if err = p.match(QUERY); err != nil {
+		if err = p.match(MUTATION); err != nil {
+			if err = p.match(SUBSCRIPTION); err != nil {
+				return ErrBadParse{
+					line:   p.input.Line(),
+					expect: fmt.Sprintf("%s or %s", tokens[QUERY], tokens[MUTATION]),
+					found:  p.lookAhead(1),
+				}
+			}
 		}
 	}
 
@@ -150,7 +151,6 @@ func (p *parser) operationDefinition() error {
 		p.match(NAME)
 	}
 
-	var err error
 	if p.lookAhead(1).Kind == LPAREN {
 		if err = p.variableDefinitions(); err != nil {
 			return err
@@ -174,6 +174,12 @@ func (p *parser) variableDefinitions() error {
 
 	if err = p.variableDefinition(); err != nil {
 		return err
+	}
+
+	for p.lookAhead(1).Kind != RPAREN {
+		if err = p.variableDefinition(); err != nil {
+			return err
+		}
 	}
 
 	if err = p.match(RPAREN); err != nil {
@@ -376,10 +382,10 @@ func (p *parser) selectionSet() error {
 
 func (p *parser) selection() error {
 	if p.lookAhead(1).Kind == SPREAD {
-		if p.lookAhead(2).Kind == ON {
-			return p.inlineFragment()
+		if p.lookAhead(2).Kind == NAME && p.lookAhead(2).Text != tokens[ON] {
+			return p.fragmentSpread()
 		}
-		return p.fragmentSpread()
+		return p.inlineFragment()
 	}
 
 	return p.field()
@@ -424,6 +430,14 @@ func (p *parser) fragmentSpread() error {
 		return err
 	}
 
+	if p.lookAhead(1).Text == tokens[ON] {
+		return ErrBadParse{
+			line:   p.input.Line(),
+			expect: "NAME but not *on*",
+			found:  p.lookAhead(1),
+		}
+	}
+
 	if err = p.match(NAME); err != nil {
 		return err
 	}
@@ -441,14 +455,16 @@ func (p *parser) inlineFragment() error {
 		return err
 	}
 
-	if p.lookAhead(1).Kind == ON {
+	if p.lookAhead(1).Text == tokens[ON] {
 		if err = p.typeCondition(); err != nil {
 			return err
 		}
 	}
 
 	if p.lookAhead(1).Kind == AT {
-		return p.directives()
+		if err = p.directives(); err != nil {
+			return err
+		}
 	}
 
 	return p.selectionSet()
@@ -632,7 +648,7 @@ func (p *parser) directives() error {
 		return err
 	}
 
-	for p.lookAhead(1) != TokenEOF {
+	for p.lookAhead(1).Kind == AT {
 		if err = p.directive(); err != nil {
 			return err
 		}
@@ -664,6 +680,14 @@ func (p *parser) fragmentDefinition() error {
 		return err
 	}
 
+	if p.lookAhead(1).Text == tokens[ON] {
+		return ErrBadParse{
+			line:   p.input.Line(),
+			expect: "NAME but not *on*",
+			found:  p.lookAhead(1),
+		}
+	}
+
 	if err = p.match(NAME); err != nil {
 		return err
 	}
@@ -686,10 +710,19 @@ func (p *parser) lookAhead(i int) Token {
 }
 
 func (p *parser) match(k Kind) error {
-	if p.lookAhead(1).Kind == k {
-		p.consume()
-		return nil
+	// fmt.Println("DEBUG tok", p.lookAhead(1))
+	if keywordBeg < k && k < keywordEnd {
+		if p.lookAhead(1).Kind == NAME && p.lookAhead(1).Text == tokens[k] {
+			p.consume()
+			return nil
+		}
+	} else {
+		if p.lookAhead(1).Kind == k {
+			p.consume()
+			return nil
+		}
 	}
+
 	return ErrBadParse{
 		line:   p.input.Line(),
 		expect: tokens[k],

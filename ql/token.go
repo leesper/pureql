@@ -21,7 +21,6 @@ const (
 	// Special tokens
 	ILLEGAL Kind = iota
 	EOF
-	COMMENT
 
 	// Punctuators
 	punctBeg
@@ -40,9 +39,10 @@ const (
 	RBRACE // }
 	punctEnd
 
-	// Names and scalar type literals
+	NAME // query
+
+	// scalar type literals
 	literalBeg
-	NAME   // query
 	INT    // 12345
 	FLOAT  // 123.45
 	STRING // "abc"
@@ -71,7 +71,6 @@ const (
 var tokens = map[Kind]string{
 	ILLEGAL:      "ILLEGAL",
 	EOF:          "EOF",
-	COMMENT:      "COMMENT",
 	BANG:         "!",
 	DOLLAR:       "$",
 	LPAREN:       "(",
@@ -130,24 +129,6 @@ func lookupName(name string) Kind {
 		return kind
 	}
 	return NAME
-}
-
-// IsPunct returns true for tokens corresponding to punctuators;
-// it returns false otherwise.
-func (tok Token) IsPunct() bool {
-	return punctBeg < tok.Kind && tok.Kind < punctEnd
-}
-
-// IsLiteral returns true for tokens corresponding to names or scalar types;
-// it returns false otherwise.
-func (tok Token) IsLiteral() bool {
-	return literalBeg < tok.Kind && tok.Kind < literalEnd
-}
-
-// IsKeyword returns true for tokens corresponding to keywords;
-// it returns false otherwise.
-func (tok Token) IsKeyword() bool {
-	return keywordBeg < tok.Kind && tok.Kind < keywordEnd
 }
 
 // String returns the string corresponding to the token tok.

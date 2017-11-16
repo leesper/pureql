@@ -2,13 +2,26 @@ package ql
 
 import "testing"
 
+func TestBadToken(t *testing.T) {
+	err := ParseDocument(`
+query ф {
+	me {
+		id
+	}
+}`)
+
+	if err.Error() != "line 2: expecting {, found <'ф', ILLEGAL>" {
+		t.Error(err)
+	}
+}
+
 func TestParseQuery(t *testing.T) {
 	err := ParseDocument(`
-	query _ {
-		me {
-			id
-		}
-	}`)
+query _ {
+	me {
+		id
+	}
+}`)
 
 	if err != nil {
 		t.Error(err)
@@ -27,7 +40,6 @@ func TestParseInvalids(t *testing.T) {
 	if err == nil {
 		t.Errorf("expecting error, found nil")
 	}
-
 	expecting := "line 1: expecting NAME, found <'EOF', EOF>"
 	if err.Error() != expecting {
 		t.Errorf("expecting %s, found %s", expecting, err)
@@ -37,207 +49,175 @@ func TestParseInvalids(t *testing.T) {
 { ...MissingOn }
 fragment MissingOn Type
 `)
-
 	if err == nil {
 		t.Error("expecting error, found nil")
 	}
-
 	expecting = "line 3: expecting on, found <'Type', NAME>"
 	if err.Error() != expecting {
 		t.Errorf("expecting %s, found %s", expecting, err)
 	}
 
-	// parser = NewParser(NewLexer(`{ field: {} }`))
-	// err = parser.Parse()
-	// if err == nil {
-	// 	t.Error("should return error")
-	// }
-	// switch err.(type) {
-	// case ErrBadParse:
-	// 	// that's what we want
-	// default:
-	// 	t.Errorf("expecting ErrBadParse, found %v", err)
-	// }
-	//
-	// parser = NewParser(NewLexer(`notanoperation Foo { field }`))
-	// err = parser.Parse()
-	// if err == nil {
-	// 	t.Error("should return error")
-	// }
-	// switch err.(type) {
-	// case ErrBadParse:
-	// 	// that's what we want
-	// default:
-	// 	t.Errorf("expecting ErrBadParse, found %v", err)
-	// }
-	//
-	// parser = NewParser(NewLexer("..."))
-	// err = parser.Parse()
-	// if err == nil {
-	// 	t.Error("should return error")
-	// }
-	// switch err.(type) {
-	// case ErrBadParse:
-	// 	// that's what we want
-	// default:
-	// 	t.Errorf("expecting ErrBadParse, found %v", err)
-	// }
-	//
-	// parser = NewParser(NewLexer("query"))
-	// err = parser.Parse()
-	// if err == nil {
-	// 	t.Error("should return error")
-	// }
-	// switch err.(type) {
-	// case ErrBadParse:
-	// 	// that's what we want
-	// default:
-	// 	t.Errorf("expecting ErrBadParse, found %v", err)
-	// }
+	err = ParseDocument(`{ field: {} }`)
+	if err == nil {
+		t.Error("expecting error, found nil")
+	}
+	expecting = "line 1: expecting NAME, found <'{', {>"
+	if err.Error() != expecting {
+		t.Errorf("expecting %s, found %s", expecting, err)
+	}
+
+	err = ParseDocument(`notAnOper Foo { field }`)
+	if err == nil {
+		t.Error("expecting error, found nil")
+	}
+	expecting = "line 1: expecting query or mutation, found <'notAnOper', NAME>"
+	if err.Error() != expecting {
+		t.Errorf("expecting %s, found %s", expecting, err)
+	}
+
+	err = ParseDocument(`...`)
+	if err == nil {
+		t.Error("expecting error, found nil")
+	}
+	expecting = "line 1: expecting query or mutation, found <'...', ...>"
+	if err.Error() != expecting {
+		t.Errorf("expecting %s, found %s", expecting, err)
+	}
+
+	err = ParseDocument("query")
+	if err == nil {
+		t.Error("expecting error, found nil")
+	}
+	expecting = "line 1: expecting {, found <'EOF', EOF>"
+	if err.Error() != expecting {
+		t.Errorf("expecting %s, found %s", expecting, err)
+	}
 }
 
-// func TestParseVariableInline(t *testing.T) {
-// 	parser := NewParser(NewLexer(`{ field(complex: { a: { b: [ $var ] } }) }`))
-// 	err := parser.Parse()
-// 	if err != nil {
-// 		t.Error("unexpected error", err)
-// 	}
-// }
-//
-// func TestParseDefaultValues(t *testing.T) {
-// 	parser := NewParser(NewLexer(`query Foo($x: Complex = { a: { b: [ $var ] } }) { field }`))
-// 	err := parser.Parse()
-// 	if err != nil {
-// 		t.Error("unexpected error", err)
-// 	}
-// }
-//
-// func TestParseInvalidUseOn(t *testing.T) {
-// 	parser := NewParser(NewLexer(`fragment on on on { on }`))
-// 	err := parser.Parse()
-// 	if err == nil {
-// 		t.Error("should return error")
-// 	}
-// 	switch err.(type) {
-// 	case ErrBadParse:
-// 		// that's what we want
-// 	default:
-// 		t.Errorf("expecting ErrBadParse, found %v", err)
-// 	}
-// }
-//
-// func TestParseInvalidSpreadOfOn(t *testing.T) {
-// 	parser := NewParser(NewLexer(`{ ...on }`))
-// 	err := parser.Parse()
-// 	if err == nil {
-// 		t.Error("should return error")
-// 	}
-// 	switch err.(type) {
-// 	case ErrBadParse:
-// 		// that's what we want
-// 	default:
-// 		t.Errorf("expecting ErrBadParse, found %v", err)
-// 	}
-// }
-//
-// func TestParseNullMisuse(t *testing.T) {
-// 	parser := NewParser(NewLexer(`{ fieldWithNullableStringInput(input: null) }`))
-// 	err := parser.Parse()
-// 	if err == nil {
-// 		t.Error("should return error")
-// 	}
-// 	switch err.(type) {
-// 	case ErrBadParse:
-// 		// that's what we want
-// 	default:
-// 		t.Errorf("expecting ErrBadParse, found %v", err)
-// 	}
-// }
-//
-// func TestParseQueryWithComment(t *testing.T) {
-// 	parser := NewParser(NewLexer(`
-// 		# This comment has a \u0A0A multi-byte character.
-// 		{ field(arg: "Has a \u0A0A multi-byte character.") }
-// 	`))
-// 	err := parser.Parse()
-// 	if err != nil {
-// 		t.Error("unexpected error", err)
-// 	}
-// }
-//
-// func TestParseQueryWithUnicode(t *testing.T) {
-// 	parser := NewParser(NewLexer(`
-// 		# This comment has a фы世界 multi-byte character.
-//     { field(arg: "Has a фы世界 multi-byte character.") }
-// 	`))
-// 	err := parser.Parse()
-// 	if err != nil {
-// 		t.Error("unexpected error", err)
-// 	}
-// }
-//
-// func TestParseQueryFile(t *testing.T) {
-// 	parser := NewParser(NewLexer(`# Copyright (c) 2015-present, Facebook, Inc.
-// #
-// # This source code is licensed under the MIT license found in the
-// # LICENSE file in the root directory of this source tree.
-//
-// query queryName($foo: ComplexType, $site: Site = MOBILE) {
-//   whoever123is: node(id: [123, 456]) {
-//     id ,
-//     ... on User @defer {
-//       field2 {
-//         id ,
-//         alias: field1(first:10, after:$foo,) @include(if: $foo) {
-//           id,
-//           ...frag
-//         }
-//       }
-//     }
-//     ... @skip(unless: $foo) {
-//       id
-//     }
-//     ... {
-//       id
-//     }
-//   }
-// }
-//
-// mutation likeStory {
-//   like(story: 123) @defer {
-//     story {
-//       id
-//     }
-//   }
-// }
-//
-// subscription StoryLikeSubscription($input: StoryLikeSubscribeInput) {
-//   storyLikeSubscribe(input: $input) {
-//     story {
-//       likers {
-//         count
-//       }
-//       likeSentence {
-//         text
-//       }
-//     }
-//   }
-// }
-//
-// fragment frag on Friend {
-//   foo(size: $size, bar: $b, obj: {key: "value"})
-// }
-//
-// {
-//   unnamed(truthy: true, falsey: false, nullish: null),
-//   query
-// }`))
-// 	err := parser.Parse()
-// 	if err != nil {
-// 		t.Error("unexpected error", err)
-// 	}
-// }
-//
+func TestParseVariableInline(t *testing.T) {
+	err := ParseDocument(`{ field(complex: { a: { b: [ $var ] } }) }`)
+	if err != nil {
+		t.Error("unexpected error", err)
+	}
+}
+
+func TestParseDefaultValues(t *testing.T) {
+	err := ParseDocument(`query Foo($x: Complex = { a: { b: [ true ] } }) { field }`)
+	if err != nil {
+		t.Error("unexpected error", err)
+	}
+}
+
+func TestParseInvalidUseOn(t *testing.T) {
+	err := ParseDocument(`fragment on on on { on }`)
+	if err == nil {
+		t.Error("should return error")
+	}
+	expecting := "line 1: expecting NAME but not *on*, found <'on', NAME>"
+	if err.Error() != expecting {
+		t.Errorf("expecting %s, found %s", expecting, err)
+	}
+}
+
+func TestParseInvalidSpreadOfOn(t *testing.T) {
+	err := ParseDocument(`{ ...on }`)
+	if err == nil {
+		t.Error("should return error")
+	}
+	expecting := "line 1: expecting NAME, found <'}', }>"
+	if err.Error() != expecting {
+		t.Errorf("expecting %s, found %s", expecting, err)
+	}
+}
+
+func TestParseNullMisuse(t *testing.T) {
+	err := ParseDocument(`{ fieldWithNullableStringInput(input: null) }`)
+	if err != nil {
+		t.Error("unexpected error", err)
+	}
+}
+
+func TestParseQueryWithComment(t *testing.T) {
+	err := ParseDocument(`
+# This comment has a \u0A0A multi-byte character.
+{
+	field(arg: "Has a \u0A0A multi-byte character.")
+}`)
+	if err != nil {
+		t.Error("unexpected error", err)
+	}
+}
+
+func TestParseQueryWithUnicode(t *testing.T) {
+	err := ParseDocument(`
+# This comment has a фы世界 multi-byte character.
+{ field(arg: "Has a фы世界 multi-byte character.") }`)
+	if err != nil {
+		t.Error("unexpected error", err)
+	}
+}
+
+func TestParseQueryFile(t *testing.T) {
+	err := ParseDocument(`# Copyright (c) 2015-present, Facebook, Inc.
+#
+# This source code is licensed under the MIT license found in the
+# LICENSE file in the root directory of this source tree.
+
+query queryName($foo: ComplexType, $site: Site = MOBILE) {
+  whoever123is: node(id: [123, 456]) {
+    id ,
+    ... on User @defer {
+      field2 {
+        id ,
+        alias: field1(first:10, after:$foo,) @include(if: $foo) {
+          id,
+          ...frag
+        }
+      }
+    }
+    ... @skip(unless: $foo) {
+      id
+    }
+    ... {
+      id
+    }
+  }
+}
+
+mutation likeStory {
+  like(story: 123) @defer {
+    story {
+      id
+    }
+  }
+}
+
+subscription StoryLikeSubscription($input: StoryLikeSubscribeInput) {
+  storyLikeSubscribe(input: $input) {
+    story {
+      likers {
+        count
+      }
+      likeSentence {
+        text
+      }
+    }
+  }
+}
+
+fragment frag on Friend {
+  foo(size: $size, bar: $b, obj: {key: "value"})
+}
+
+{
+  unnamed(truthy: true, falsey: false, nullish: null),
+  query
+}`)
+	if err != nil {
+		t.Error("unexpected error", err)
+	}
+}
+
 // func TestParseNonKeywordWhereNameAllowed(t *testing.T) {
 // 	nonKeywords := []string{
 // 		"on",
