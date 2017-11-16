@@ -1,6 +1,9 @@
 package ql
 
-import "testing"
+import (
+	"fmt"
+	"testing"
+)
 
 func TestBadToken(t *testing.T) {
 	err := ParseDocument(`
@@ -218,168 +221,162 @@ fragment frag on Friend {
 	}
 }
 
-// func TestParseNonKeywordWhereNameAllowed(t *testing.T) {
-// 	nonKeywords := []string{
-// 		"on",
-// 		"fragment",
-// 		"query",
-// 		"mutation",
-// 		"subscription",
-// 		"true",
-// 		"false",
-// 	}
-// 	for _, nonKeyword := range nonKeywords {
-// 		fragmentName := nonKeyword
-// 		if nonKeyword == "on" {
-// 			nonKeyword = "alpha"
-// 		}
-// 		query := fmt.Sprintf(`
-// 		query %v {
-// 			... %v
-// 			... on %v { field }
-// 		}
-// 		fragment %v on Type {
-// 			%v(%v: $%v) @%v(%v: $%v)
-// 		}
-// 		`, nonKeyword, fragmentName, nonKeyword, nonKeyword, nonKeyword, nonKeyword,
-// 			nonKeyword, nonKeyword, nonKeyword, nonKeyword)
-// 		parser := NewParser(NewLexer(query))
-// 		err := parser.Parse()
-// 		if err != nil {
-// 			t.Error("unexpected error", err)
-// 		}
-// 	}
-// }
-//
-// func TestParseSubscription(t *testing.T) {
-// 	parser := NewParser(NewLexer(`
-// subscription Foo {
-//   subscriptionField
-// }`))
-// 	err := parser.Parse()
-// 	if err != nil {
-// 		t.Error("unexpected error", err)
-// 	}
-// }
-//
-// func TestParseUnnamedSubscription(t *testing.T) {
-// 	parser := NewParser(NewLexer(`
-// subscription {
-//   subscriptionField
-// }`))
-// 	err := parser.Parse()
-// 	if err != nil {
-// 		t.Error("unexpected error", err)
-// 	}
-// }
-//
-// func TestParseMutation(t *testing.T) {
-// 	parser := NewParser(NewLexer(`
-// mutation Foo {
-//   mutationField
-// }`))
-// 	err := parser.Parse()
-// 	if err != nil {
-// 		t.Error("unexpected error", err)
-// 	}
-// }
-//
-// func TestParseUnnamedMutation(t *testing.T) {
-// 	parser := NewParser(NewLexer(`
-// mutation {
-//   mutationField
-// }`))
-// 	err := parser.Parse()
-// 	if err != nil {
-// 		t.Error("unexpected error", err)
-// 	}
-// }
-//
-// func TestParseSchemaFile(t *testing.T) {
-// 	parser := NewParser(NewLexer(`# Copyright (c) 2015-present, Facebook, Inc.
-// #
-// # This source code is licensed under the MIT license found in the
-// # LICENSE file in the root directory of this source tree.
-//
-// schema {
-//   query: QueryType
-//   mutation: MutationType
-// }
-//
-// type Foo implements Bar {
-//   one: Type
-//   two(argument: InputType!): Type
-//   three(argument: InputType, other: String): Int
-//   four(argument: String = "string"): String
-//   five(argument: [String] = ["string", "string"]): String
-//   six(argument: InputType = {key: "value"}): Type
-//   seven(argument: Int = null): Type
-// }
-//
-// type AnnotatedObject @onObject(arg: "value") {
-//   annotatedField(arg: Type = "default" @onArg): Type @onField
-// }
-//
-// interface Bar {
-//   one: Type
-//   four(argument: String = "string"): String
-// }
-//
-// interface AnnotatedInterface @onInterface {
-//   annotatedField(arg: Type @onArg): Type @onField
-// }
-//
-// union Feed = Story | Article | Advert
-//
-// union AnnotatedUnion @onUnion = A | B
-//
-// union AnnotatedUnionTwo @onUnion = | A | B
-//
-// scalar CustomScalar
-//
-// scalar AnnotatedScalar @onScalar
-//
-// enum Site {
-//   DESKTOP
-//   MOBILE
-// }
-//
-// enum AnnotatedEnum @onEnum {
-//   ANNOTATED_VALUE @onEnumValue
-//   OTHER_VALUE
-// }
-//
-// input InputType {
-//   key: String!
-//   answer: Int = 42
-// }
-//
-// input AnnotatedInput @onInputObjectType {
-//   annotatedField: Type @onField
-// }
-//
-// extend type Foo {
-//   seven(argument: [String]): Type
-// }
-//
-// extend type Foo @onType {}
-//
-// type NoFields {}
-//
-// directive @skip(if: Boolean!) on FIELD | FRAGMENT_SPREAD | INLINE_FRAGMENT
-//
-// directive @include(if: Boolean!)
-//   on FIELD
-//    | FRAGMENT_SPREAD
-//    | INLINE_FRAGMENT
-//
-// directive @include2(if: Boolean!) on
-//   | FIELD
-//   | FRAGMENT_SPREAD
-//   | INLINE_FRAGMENT`))
-//
-// 	err := parser.Parse()
-// 	if err != nil {
-// 		t.Error("unexpected error", err)
-// 	}
-// }
+func TestParseNonKeywordWhereNameAllowed(t *testing.T) {
+	nonKeywords := []string{
+		"on",
+		"fragment",
+		"query",
+		"mutation",
+		"subscription",
+		"true",
+		"false",
+	}
+	for _, nonKeyword := range nonKeywords {
+		fragmentName := nonKeyword
+		if nonKeyword == "on" {
+			fragmentName = "alpha"
+		}
+		query := fmt.Sprintf(`
+query %v {
+	... %v
+	... on %v { field }
+}
+fragment %v on Type {
+	%v(%v: $%v) @%v(%v: $%v)
+}`, nonKeyword, fragmentName, nonKeyword, fragmentName, nonKeyword, nonKeyword,
+			nonKeyword, nonKeyword, nonKeyword, nonKeyword)
+		err := ParseDocument(query)
+		if err != nil {
+			t.Error("unexpected error", err, query)
+		}
+	}
+}
+
+func TestParseSubscription(t *testing.T) {
+	err := ParseDocument(`
+subscription Foo {
+  subscriptionField
+}`)
+	if err != nil {
+		t.Error("unexpected error", err)
+	}
+}
+
+func TestParseUnnamedSubscription(t *testing.T) {
+	err := ParseDocument(`
+subscription {
+  subscriptionField
+}`)
+	if err != nil {
+		t.Error("unexpected error", err)
+	}
+}
+
+func TestParseMutation(t *testing.T) {
+	err := ParseDocument(`
+mutation Foo {
+  mutationField
+}`)
+	if err != nil {
+		t.Error("unexpected error", err)
+	}
+}
+
+func TestParseUnnamedMutation(t *testing.T) {
+	err := ParseDocument(`
+mutation {
+  mutationField
+}`)
+	if err != nil {
+		t.Error("unexpected error", err)
+	}
+}
+
+func TestParseSchemaFile(t *testing.T) {
+	err := ParseSchema(`
+# Copyright (c) 2015-present, Facebook, Inc.
+#
+# This source code is licensed under the MIT license found in the
+# LICENSE file in the root directory of this source tree.
+
+schema {
+  query: QueryType
+  mutation: MutationType
+}
+
+type Foo implements Bar {
+  one: Type
+  two(argument: InputType!): Type
+  three(argument: InputType, other: String): Int
+  four(argument: String = "string"): String
+  five(argument: [String] = ["string", "string"]): String
+  six(argument: InputType = {key: "value"}): Type
+  seven(argument: Int = null): Type
+}
+
+type AnnotatedObject @onObject(arg: "value") {
+  annotatedField(arg: Type = "default" @onArg): Type @onField
+}
+
+interface Bar {
+  one: Type
+  four(argument: String = "string"): String
+}
+
+interface AnnotatedInterface @onInterface {
+  annotatedField(arg: Type @onArg): Type @onField
+}
+
+union Feed = Story | Article | Advert
+
+union AnnotatedUnion @onUnion = A | B
+
+union AnnotatedUnionTwo @onUnion = A | B
+
+scalar CustomScalar
+
+scalar AnnotatedScalar @onScalar
+
+enum Site {
+  DESKTOP
+  MOBILE
+}
+
+enum AnnotatedEnum @onEnum {
+  ANNOTATED_VALUE @onEnumValue
+  OTHER_VALUE
+}
+
+input InputType {
+  key: String!
+  answer: Int = 42
+}
+
+input AnnotatedInput @onInputObjectType {
+  annotatedField: Type @onField
+}
+
+extend type Foo {
+  seven(argument: [String]): Type
+}
+
+extend type Foo @onType {}
+
+type NoFields {}
+
+directive @skip(if: Boolean!) on FIELD | FRAGMENT_SPREAD | INLINE_FRAGMENT
+
+directive @include(if: Boolean!)
+  on FIELD
+   | FRAGMENT_SPREAD
+   | INLINE_FRAGMENT
+
+directive @include2(if: Boolean!) on
+  FIELD
+  | FRAGMENT_SPREAD
+  | INLINE_FRAGMENT`)
+
+	if err != nil {
+		t.Error("unexpected error", err)
+	}
+}

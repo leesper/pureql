@@ -5,16 +5,6 @@ import (
 	"fmt"
 )
 
-// ErrBadToken for invalid token.
-// type ErrBadToken struct {
-// 	line int
-// 	tok  Token
-// }
-//
-// func (e ErrBadToken) Error() string {
-// 	return fmt.Sprintf("line %d: bad token %s", e.line, e.tok)
-// }
-
 // ErrBadParse for invalid parse.
 type ErrBadParse struct {
 	line   int
@@ -106,22 +96,22 @@ func (p *parser) parseSchema() error {
 }
 
 func (p *parser) schema() error {
-	switch p.lookAhead(1).Kind {
-	case INTERFACE:
+	switch p.lookAhead(1).Text {
+	case tokens[INTERFACE]:
 		return p.interfaceDefinition()
-	case SCALAR:
+	case tokens[SCALAR]:
 		return p.scalarDefinition()
-	case INPUT:
+	case tokens[INPUT]:
 		return p.inputObjectDefinition()
-	case TYPE:
+	case tokens[TYPE]:
 		return p.typeDefinition()
-	case EXTEND:
+	case tokens[EXTEND]:
 		return p.extendDefinition()
-	case DIRECTIVE:
+	case tokens[DIRECTIVE]:
 		return p.directiveDefinition()
-	case SCHEMA:
+	case tokens[SCHEMA]:
 		return p.schemaDefinition()
-	case ENUM:
+	case tokens[ENUM]:
 		return p.enumDefinition()
 	default:
 		return p.unionDefinition()
@@ -580,7 +570,17 @@ func (p *parser) nullValue() error {
 }
 
 func (p *parser) enumValue() error {
-	return p.match(NAME)
+	err := p.match(NAME)
+	if err != nil {
+		return err
+	}
+
+	if p.lookAhead(1).Kind == AT {
+		if err = p.directives(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (p *parser) listValue() error {
@@ -733,53 +733,6 @@ func (p *parser) match(k Kind) error {
 func (p *parser) consume() {
 	p.lookAheads[p.curr] = p.input.Read()
 	p.curr = (p.curr + 1) % len(p.lookAheads)
-}
-
-// Parse parses the tokens, it returns error if something goes wrong.
-func Parse() error {
-	// var err error
-	// p.lookAhead = p.lexer.Read()
-	// for p.lookAhead != TokenEOF {
-	// 	switch p.lookAhead.Text {
-	// 	case tokens[QUERY], tokens[MUTATION], tokens[LBRACE]:
-	// 		err = p.document()
-	// 		if err != nil {
-	// 			return err
-	// 		}
-	// 	case tokens[INTERFACE]:
-	// 		err = p.interfaceDefinition()
-	// 		if err != nil {
-	// 			return err
-	// 		}
-	// 	case tokens[SCALAR]:
-	// 		err = p.scalarDefinition()
-	// 		if err != nil {
-	// 			return err
-	// 		}
-	// 	case tokens[INPUT]:
-	// 		err = p.inputObjectDefinition()
-	// 		if err != nil {
-	// 			return err
-	// 		}
-	// 	case tokens[TYPE]:
-	// 		err = p.typeDefinition()
-	// 		if err != nil {
-	// 			return err
-	// 		}
-	// 	case tokens[SCHEMA]:
-	// 		err = p.schemaDefinition()
-	// 		if err != nil {
-	// 			return err
-	// 		}
-	// 	default:
-	// 		expecting := fmt.Sprintf("%s/%s/%s/%s/%s/%s/%s/%s",
-	// 			tokens[QUERY], tokens[MUTATION], tokens[LBRACE], tokens[INTERFACE],
-	// 			tokens[SCALAR], tokens[INPUT], tokens[TYPE], tokens[SCHEMA])
-	// 		return ErrBadParse{p.lexer.Line(), expecting, p.lookAhead}
-	// 	}
-	// 	p.lookAhead = p.lexer.Read()
-	// }
-	return nil
 }
 
 func (p *parser) interfaceDefinition() error {
@@ -953,7 +906,7 @@ func (p *parser) typeDefinition() error {
 		return err
 	}
 
-	if p.lookAhead(1).Kind == IMPLEMENTS {
+	if p.lookAhead(1).Text == tokens[IMPLEMENTS] {
 		if err = p.implementsInterfaces(); err != nil {
 			return err
 		}
@@ -969,9 +922,9 @@ func (p *parser) typeDefinition() error {
 		return err
 	}
 
-	if err = p.fieldDefinition(); err != nil {
-		return err
-	}
+	// if err = p.fieldDefinition(); err != nil {
+	// 	return err
+	// }
 
 	for p.lookAhead(1).Kind != RBRACE {
 		if err = p.fieldDefinition(); err != nil {
@@ -991,7 +944,7 @@ func (p *parser) implementsInterfaces() error {
 		return err
 	}
 
-	for p.lookAhead(1) != TokenEOF {
+	for p.lookAhead(1).Kind == NAME {
 		if err = p.match(NAME); err != nil {
 			return err
 		}
@@ -1088,15 +1041,17 @@ func (p *parser) schemaDefinition() error {
 }
 
 func (p *parser) operationTypeDefinition() error {
-	if p.lookAhead(1).Kind == QUERY {
-		p.match(QUERY)
-	} else if p.lookAhead(1).Kind == MUTATION {
-		p.match(MUTATION)
-	} else {
-		return ErrBadParse{
-			line:   p.input.Line(),
-			expect: fmt.Sprintf("%s or %s", tokens[QUERY], tokens[MUTATION]),
-			found:  p.lookAhead(1),
+	var err error
+	if err = p.match(QUERY); err != nil {
+		if err = p.match(MUTATION); err != nil {
+			if err = p.match(SUBSCRIPTION); err != nil {
+				return ErrBadParse{
+					line: p.input.Line(),
+					expect: fmt.Sprintf("%s or %s or %s",
+						tokens[QUERY], tokens[MUTATION], tokens[SUBSCRIPTION]),
+					found: p.lookAhead(1),
+				}
+			}
 		}
 	}
 
@@ -1131,7 +1086,7 @@ func (p *parser) enumDefinition() error {
 		return err
 	}
 
-	for p.lookAhead(1).Kind == RBRACE {
+	for p.lookAhead(1).Kind != RBRACE {
 		if err = p.enumValue(); err != nil {
 			return err
 		}
