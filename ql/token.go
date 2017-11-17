@@ -123,14 +123,6 @@ func illegalToken(v string) Token {
 	return Token{ILLEGAL, v}
 }
 
-func lookupName(name string) Kind {
-	kind, ok := keywords[name]
-	if ok {
-		return kind
-	}
-	return NAME
-}
-
 // String returns the string corresponding to the token tok.
 func (tok Token) String() string {
 	return fmt.Sprintf("<'%s', %s>", tok.Text, tokens[tok.Kind])
