@@ -4,28 +4,53 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
+	"io"
 	"strconv"
 	"strings"
 )
 
 // Lexer converts the GraphQL source text into tokens.
 type Lexer struct {
-	scanner *bufio.Scanner
-	current rune
-	line    int
+	input     *bufio.Reader
+	lookAhead rune
+	line      int
 }
 
 // NewLexer returns a new Lexer parsing source.
 func NewLexer(source string) *Lexer {
 	source = strings.TrimRight(source, "\n\t\r ")
-	scanner := bufio.NewScanner(strings.NewReader(source))
-	scanner.Split(bufio.ScanRunes)
-	lexer := &Lexer{
-		scanner: scanner,
-		line:    1,
+	reader := bufio.NewReader(strings.NewReader(source))
+	l := &Lexer{
+		input: reader,
+		line:  1,
 	}
-	lexer.consume()
-	return lexer
+
+	l.consume()
+
+	return l
+}
+
+func (l *Lexer) consume() {
+	r, _, err := l.input.ReadRune()
+	if err != nil {
+		if err == io.EOF {
+			r = rune(EOF)
+		} else {
+			r = rune(ILLEGAL)
+		}
+	}
+
+	l.lookAhead = r
+}
+
+func (l *Lexer) match(r rune) error {
+	if l.lookAhead == r {
+		l.consume()
+		return nil
+	}
+
+	return fmt.Errorf("expecting %s, found %s",
+		strconv.QuoteRune(r), strconv.QuoteRune(l.lookAhead))
 }
 
 // Line returns the line number of current token.
@@ -35,12 +60,12 @@ func (l *Lexer) Line() int {
 
 // Read consumes and returns a token.
 func (l *Lexer) Read() Token {
-	for l.current != rune(EOF) {
-		switch l.current {
+	for l.lookAhead != rune(EOF) {
+		switch l.lookAhead {
 		case '#':
 			l.readComment()
 		case '\uFEFF', '\u0009', '\u0020', '\u000A', '\u000D', ',': // ignored
-			if l.current == '\u000A' { // new line
+			if l.lookAhead == '\u000A' { // new line
 				l.line++
 			}
 			l.consume()
@@ -82,27 +107,7 @@ func (l *Lexer) Read() Token {
 			l.consume()
 			return Token{RBRACE, "}"}
 		case '.': // ...
-			var b bytes.Buffer
-			b.WriteRune('.')
-			l.consume()
-
-			if l.current != '.' {
-				b.WriteRune(l.current)
-				l.consume()
-				return illegalToken(b.String())
-			}
-			b.WriteRune('.')
-			l.consume()
-
-			if l.current != '.' {
-				b.WriteRune(l.current)
-				l.consume()
-				return illegalToken(b.String())
-			}
-			b.WriteRune('.')
-			l.consume()
-
-			return Token{SPREAD, b.String()}
+			return l.readSpread()
 		case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-':
 			return l.readNumber()
 		case 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o',
@@ -113,28 +118,31 @@ func (l *Lexer) Read() Token {
 		case '"':
 			return l.readString()
 		default:
-			return illegalToken(string(l.current))
+			return illegalToken(string(l.lookAhead))
 		}
 	}
 	return TokenEOF
 }
 
-func (l *Lexer) consume() {
-	if l.scanner.Scan() {
-		l.current = []rune(l.scanner.Text())[0]
-	} else {
-		if l.scanner.Err() != nil {
-			l.current = rune(ILLEGAL)
-		} else {
-			l.current = rune(EOF)
+func (l *Lexer) readSpread() Token {
+	// ...
+	var b bytes.Buffer
+	var err error
+	for i := 0; i < 3; i++ {
+		if err = l.match('.'); err != nil {
+			b.WriteRune(l.lookAhead)
+			return illegalToken(b.String())
 		}
+		b.WriteRune('.')
 	}
+
+	return Token{SPREAD, b.String()}
 }
 
 func (l *Lexer) readComment() {
 	l.consume()
-	for l.current != rune(EOF) &&
-		(l.current >= '\u0020' || l.current == '\u0009') { // SourceCharacter but not LineTerminator
+	for l.lookAhead != rune(EOF) &&
+		(l.lookAhead >= '\u0020' || l.lookAhead == '\u0009') { // SourceCharacter but not LineTerminator
 		l.consume()
 	}
 }
@@ -144,76 +152,75 @@ func (l *Lexer) readComment() {
 // IntegerPart : '0' | NonZeroDigit Digit*
 func (l *Lexer) readNumber() Token {
 	var b bytes.Buffer
-	if l.current == '-' {
+	if l.lookAhead == '-' {
 		b.WriteRune('-')
-		l.consume()
+		l.match('-')
 	}
 
 	// IntegerPart
-	if l.current == '0' {
+	if l.lookAhead == '0' {
 		b.WriteRune('0')
+		l.match('0')
+		if '0' <= l.lookAhead && l.lookAhead <= '9' {
+			b.WriteRune(l.lookAhead)
+			l.consume()
+			return illegalToken(b.String())
+		}
+	} else if '1' <= l.lookAhead && l.lookAhead <= '9' {
+		b.WriteRune(l.lookAhead)
 		l.consume()
-	} else if '1' <= l.current && l.current <= '9' {
-		b.WriteRune(l.current)
-		l.consume()
-		for '0' <= l.current && l.current <= '9' {
-			b.WriteRune(l.current)
+		for '0' <= l.lookAhead && l.lookAhead <= '9' {
+			b.WriteRune(l.lookAhead)
 			l.consume()
 		}
 	} else {
-		b.WriteRune(l.current)
+		b.WriteRune(l.lookAhead)
 		l.consume()
 		return illegalToken(b.String())
 	}
 
 	var isFloat bool
-	if l.current == '0' {
-		b.WriteRune('0')
-		l.consume()
-		return illegalToken(b.String())
-	}
-
-	if l.current == '.' {
+	if l.lookAhead == '.' {
 		isFloat = true
 		b.WriteRune('.')
-		l.consume()
+		l.match('.')
 
-		if '0' <= l.current && l.current <= '9' {
-			b.WriteRune(l.current)
+		if '0' <= l.lookAhead && l.lookAhead <= '9' {
+			b.WriteRune(l.lookAhead)
 			l.consume()
 		} else {
-			b.WriteRune(l.current)
+			b.WriteRune(l.lookAhead)
 			l.consume()
 			return illegalToken(b.String())
 		}
 
-		for '0' <= l.current && l.current <= '9' {
-			b.WriteRune(l.current)
+		for '0' <= l.lookAhead && l.lookAhead <= '9' {
+			b.WriteRune(l.lookAhead)
 			l.consume()
 		}
 	}
 
-	if l.current == 'e' || l.current == 'E' {
+	if l.lookAhead == 'e' || l.lookAhead == 'E' {
 		isFloat = true
-		b.WriteRune(l.current)
+		b.WriteRune(l.lookAhead)
 		l.consume()
 
-		if l.current == '-' || l.current == '+' {
-			b.WriteRune(l.current)
+		if l.lookAhead == '-' || l.lookAhead == '+' {
+			b.WriteRune(l.lookAhead)
 			l.consume()
 		}
 
-		if '0' <= l.current && l.current <= '9' {
-			b.WriteRune(l.current)
+		if '0' <= l.lookAhead && l.lookAhead <= '9' {
+			b.WriteRune(l.lookAhead)
 			l.consume()
 		} else {
-			b.WriteRune(l.current)
+			b.WriteRune(l.lookAhead)
 			l.consume()
 			return illegalToken(b.String())
 		}
 
-		for '0' <= l.current && l.current <= '9' {
-			b.WriteRune(l.current)
+		for '0' <= l.lookAhead && l.lookAhead <= '9' {
+			b.WriteRune(l.lookAhead)
 			l.consume()
 		}
 	}
@@ -227,13 +234,13 @@ func (l *Lexer) readNumber() Token {
 
 func (l *Lexer) readName() Token {
 	var b bytes.Buffer
-	b.WriteRune(l.current)
+	b.WriteRune(l.lookAhead)
 	l.consume()
-	for l.current == '_' ||
-		('0' <= l.current && l.current <= '9') ||
-		('a' <= l.current && l.current <= 'z') ||
-		('A' <= l.current && l.current <= 'Z') {
-		b.WriteRune(l.current)
+	for l.lookAhead == '_' ||
+		('0' <= l.lookAhead && l.lookAhead <= '9') ||
+		('a' <= l.lookAhead && l.lookAhead <= 'z') ||
+		('A' <= l.lookAhead && l.lookAhead <= 'Z') {
+		b.WriteRune(l.lookAhead)
 		l.consume()
 	}
 
@@ -248,19 +255,19 @@ func (l *Lexer) readString() Token {
 	b.WriteRune('"')
 	l.consume()
 
-	for l.current != rune(EOF) && l.current != '"' && l.current != '\u000A' && l.current != '\u000D' {
+	for l.lookAhead != rune(EOF) && l.lookAhead != '"' && l.lookAhead != '\u000A' && l.lookAhead != '\u000D' {
 
 		// SourceCharacter
-		if l.current < '\u0020' && l.current != '\u0009' {
-			b.WriteRune(l.current)
+		if l.lookAhead < '\u0020' && l.lookAhead != '\u0009' {
+			b.WriteRune(l.lookAhead)
 			l.consume()
 			return illegalToken(b.String())
 		}
 
-		if l.current == '\\' { // Escaped Char and Unicode
+		if l.lookAhead == '\\' { // Escaped Char and Unicode
 			l.consume()
 
-			switch l.current {
+			switch l.lookAhead {
 			case '"':
 				b.WriteRune('"')
 				l.consume()
@@ -288,13 +295,13 @@ func (l *Lexer) readString() Token {
 			case 'u':
 				l.consume()
 
-				hex1 := l.current
+				hex1 := l.lookAhead
 				l.consume()
-				hex2 := l.current
+				hex2 := l.lookAhead
 				l.consume()
-				hex3 := l.current
+				hex3 := l.lookAhead
 				l.consume()
-				hex4 := l.current
+				hex4 := l.lookAhead
 				l.consume()
 
 				quote := fmt.Sprintf(`'\u%s'`, string([]rune{hex1, hex2, hex3, hex4}))
@@ -305,18 +312,18 @@ func (l *Lexer) readString() Token {
 				}
 				b.WriteRune([]rune(ucode)[0])
 			default:
-				b.WriteRune(l.current)
+				b.WriteRune(l.lookAhead)
 				l.consume()
 				return illegalToken(b.String())
 			}
 		} else {
-			b.WriteRune(l.current)
+			b.WriteRune(l.lookAhead)
 			l.consume()
 		}
 	}
 
-	if l.current != '"' {
-		b.WriteRune(l.current)
+	if l.lookAhead != '"' {
+		b.WriteRune(l.lookAhead)
 		l.consume()
 		return illegalToken(b.String())
 	}

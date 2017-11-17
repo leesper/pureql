@@ -5,6 +5,28 @@ import (
 	"testing"
 )
 
+func TestInvalidLexerOrK(t *testing.T) {
+	if newParser(nil, 3) != nil {
+		t.Error("should return nil")
+	}
+
+	if newParser(NewLexer("foobar"), 1) != nil {
+		t.Error("should return nil")
+	}
+
+	if newParser(nil, 0) != nil {
+		t.Error("should return nil")
+	}
+
+	if err := newParser(nil, 0).parseDocument(); err == nil {
+		t.Error("should return error")
+	}
+
+	if err := newParser(nil, 0).parseSchema(); err == nil {
+		t.Error("should return error")
+	}
+}
+
 func TestBadToken(t *testing.T) {
 	err := ParseDocument(`
 query ф {
@@ -289,6 +311,32 @@ mutation {
 }`)
 	if err != nil {
 		t.Error("unexpected error", err)
+	}
+}
+
+func TestInvalidSchema(t *testing.T) {
+	err := ParseSchema(`
+type Character {
+	name: String!
+	appearsIn: [Episode]!
+}
+
+notSchema {
+	foo: bar
+}
+`)
+	if err == nil {
+		t.Error("should return error")
+	}
+
+	err = ParseSchema(`
+notSchema {
+	foo: bar
+}
+`)
+
+	if err == nil {
+		t.Error("should return error")
 	}
 }
 

@@ -495,6 +495,13 @@ func TestInvalidNumbers(t *testing.T) {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
 
+	lexer = NewLexer("09")
+	tok = lexer.Read()
+	expected = Token{ILLEGAL, "09"}
+	if tok != expected {
+		t.Errorf("returned: %v, expected: %v", tok, expected)
+	}
+
 	lexer = NewLexer("+1")
 	tok = lexer.Read()
 	expected = Token{ILLEGAL, "+"}
