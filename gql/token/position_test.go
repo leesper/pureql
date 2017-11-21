@@ -5,6 +5,34 @@ import (
 	"testing"
 )
 
+func TestPositionString(t *testing.T) {
+	pos := Position{
+		Filename: "valid",
+		Line:     5,
+		Column:   4,
+		Offset:   2,
+	}
+	expect := "valid:5:4"
+	if pos.String() != expect {
+		t.Errorf("expecting %s, found %s", expect, pos.String())
+	}
+
+	invalidPos := Position{
+		Filename: "invalid",
+		Line:     0,
+	}
+	expect = "invalid"
+	if invalidPos.String() != expect {
+		t.Errorf("expecting %s, found %s", expect, invalidPos.String())
+	}
+
+	invalidPosWithoutFilename := Position{}
+	expect = "-"
+	if invalidPosWithoutFilename.String() != expect {
+		t.Errorf("expecting %s, found %s", expect, invalidPosWithoutFilename.String())
+	}
+}
+
 func TestInvalidSize(t *testing.T) {
 	defer func() {
 		if err := recover(); err == nil {

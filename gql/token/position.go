@@ -1,6 +1,9 @@
 package token
 
-import "sort"
+import (
+	"fmt"
+	"sort"
+)
 
 // Position describes a source code position including the file name, line,
 // column and offset.
@@ -9,6 +12,27 @@ type Position struct {
 	Line     int
 	Column   int
 	Offset   int
+}
+
+// IsValid returns true if Position is valid.
+func (pos Position) IsValid() bool {
+	return pos.Line > 0
+}
+
+func (pos Position) String() string {
+	s := pos.Filename
+	if pos.IsValid() {
+		if s != "" {
+			s += ":"
+		}
+		s += fmt.Sprintf("%d:%d", pos.Line, pos.Column)
+		return s
+	}
+
+	if s == "" {
+		s = "-"
+	}
+	return s
 }
 
 // Pos is a compact encoding of a source position within a file set.
