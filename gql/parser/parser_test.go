@@ -1,4 +1,4 @@
-package gql
+package parser
 
 import (
 	"fmt"
@@ -10,7 +10,7 @@ func TestInvalidLexerOrK(t *testing.T) {
 		t.Error("should return nil")
 	}
 
-	if newParser(NewLexer("foobar"), 1) != nil {
+	if newParser(newLexer("foobar"), 1) != nil {
 		t.Error("should return nil")
 	}
 
@@ -95,7 +95,7 @@ fragment MissingOn Type
 	if err == nil {
 		t.Error("expecting error, found nil")
 	}
-	expecting = "line 1: expecting query or mutation, found <'notAnOper', NAME>"
+	expecting = "line 1: expecting query or mutation or subscription, found <'notAnOper', NAME>"
 	if err.Error() != expecting {
 		t.Errorf("expecting %s, found %s", expecting, err)
 	}
@@ -104,7 +104,7 @@ fragment MissingOn Type
 	if err == nil {
 		t.Error("expecting error, found nil")
 	}
-	expecting = "line 1: expecting query or mutation, found <'...', ...>"
+	expecting = "line 1: expecting query or mutation or subscription, found <'...', ...>"
 	if err.Error() != expecting {
 		t.Errorf("expecting %s, found %s", expecting, err)
 	}

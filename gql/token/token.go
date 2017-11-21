@@ -1,4 +1,4 @@
-package gql
+package token
 
 import "fmt"
 
@@ -105,25 +105,17 @@ var tokens = map[Kind]string{
 	DIRECTIVE:    "directive",
 }
 
-var keywords map[string]Kind
-var puncts map[string]Kind
-
-func init() {
-	keywords = make(map[string]Kind)
-	for i := keywordBeg + 1; i < keywordEnd; i++ {
-		keywords[tokens[i]] = i
-	}
-	puncts = make(map[string]Kind)
-	for i := punctBeg + 1; i < punctEnd; i++ {
-		puncts[tokens[i]] = i
-	}
-}
-
-func illegalToken(v string) Token {
-	return Token{ILLEGAL, v}
-}
-
 // String returns the string corresponding to the token tok.
 func (tok Token) String() string {
 	return fmt.Sprintf("<'%s', %s>", tok.Text, tokens[tok.Kind])
+}
+
+// IsKeyword returns true if a token Kind is in keyword range.
+func IsKeyword(k Kind) bool {
+	return keywordBeg < k && k < keywordEnd
+}
+
+// TokenString returns the string representation of Kind.
+func TokenString(k Kind) string {
+	return tokens[k]
 }

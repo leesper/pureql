@@ -1,4 +1,4 @@
-package gql
+package parser
 
 import (
 	"bufio"
@@ -7,20 +7,20 @@ import (
 	"io"
 	"strconv"
 	"strings"
+
+	"github.com/leesper/pureql/gql/token"
 )
 
-// Lexer converts the GraphQL source text into tokens.
-type Lexer struct {
+type lexer struct {
 	input     *bufio.Reader
 	lookAhead rune
 	line      int
 }
 
-// NewLexer returns a new Lexer parsing source.
-func NewLexer(source string) *Lexer {
+func newLexer(source string) *lexer {
 	source = strings.TrimRight(source, "\n\t\r ")
 	reader := bufio.NewReader(strings.NewReader(source))
-	l := &Lexer{
+	l := &lexer{
 		input: reader,
 		line:  1,
 	}
@@ -30,20 +30,20 @@ func NewLexer(source string) *Lexer {
 	return l
 }
 
-func (l *Lexer) consume() {
+func (l *lexer) consume() {
 	r, _, err := l.input.ReadRune()
 	if err != nil {
 		if err == io.EOF {
-			r = rune(EOF)
+			r = rune(token.EOF)
 		} else {
-			r = rune(ILLEGAL)
+			r = rune(token.ILLEGAL)
 		}
 	}
 
 	l.lookAhead = r
 }
 
-func (l *Lexer) match(r rune) error {
+func (l *lexer) match(r rune) error {
 	if l.lookAhead == r {
 		l.consume()
 		return nil
@@ -54,13 +54,13 @@ func (l *Lexer) match(r rune) error {
 }
 
 // Line returns the line number of current token.
-func (l *Lexer) Line() int {
+func (l *lexer) Line() int {
 	return l.line
 }
 
 // Read consumes and returns a token.
-func (l *Lexer) Read() Token {
-	for l.lookAhead != rune(EOF) {
+func (l *lexer) Read() token.Token {
+	for l.lookAhead != rune(token.EOF) {
 		switch l.lookAhead {
 		case '#':
 			l.readComment()
@@ -72,40 +72,40 @@ func (l *Lexer) Read() Token {
 			continue
 		case '!':
 			l.consume()
-			return Token{BANG, "!"}
+			return token.Token{Kind: token.BANG, Text: "!"}
 		case '$':
 			l.consume()
-			return Token{DOLLAR, "$"}
+			return token.Token{Kind: token.DOLLAR, Text: "$"}
 		case '(':
 			l.consume()
-			return Token{LPAREN, "("}
+			return token.Token{Kind: token.LPAREN, Text: "("}
 		case ')':
 			l.consume()
-			return Token{RPAREN, ")"}
+			return token.Token{Kind: token.RPAREN, Text: ")"}
 		case ':':
 			l.consume()
-			return Token{COLON, ":"}
+			return token.Token{Kind: token.COLON, Text: ":"}
 		case '=':
 			l.consume()
-			return Token{EQL, "="}
+			return token.Token{Kind: token.EQL, Text: "="}
 		case '@':
 			l.consume()
-			return Token{AT, "@"}
+			return token.Token{Kind: token.AT, Text: "@"}
 		case '[':
 			l.consume()
-			return Token{LBRACK, "["}
+			return token.Token{Kind: token.LBRACK, Text: "["}
 		case ']':
 			l.consume()
-			return Token{RBRACK, "]"}
+			return token.Token{Kind: token.RBRACK, Text: "]"}
 		case '{':
 			l.consume()
-			return Token{LBRACE, "{"}
+			return token.Token{Kind: token.LBRACE, Text: "{"}
 		case '|':
 			l.consume()
-			return Token{PIPE, "|"}
+			return token.Token{Kind: token.PIPE, Text: "|"}
 		case '}':
 			l.consume()
-			return Token{RBRACE, "}"}
+			return token.Token{Kind: token.RBRACE, Text: "}"}
 		case '.': // ...
 			return l.readSpread()
 		case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-':
@@ -118,30 +118,30 @@ func (l *Lexer) Read() Token {
 		case '"':
 			return l.readString()
 		default:
-			return illegalToken(string(l.lookAhead))
+			return token.Token{Kind: token.ILLEGAL, Text: string(l.lookAhead)}
 		}
 	}
-	return TokenEOF
+	return token.TokenEOF
 }
 
-func (l *Lexer) readSpread() Token {
+func (l *lexer) readSpread() token.Token {
 	// ...
 	var b bytes.Buffer
 	var err error
 	for i := 0; i < 3; i++ {
 		if err = l.match('.'); err != nil {
 			b.WriteRune(l.lookAhead)
-			return illegalToken(b.String())
+			return token.Token{Kind: token.ILLEGAL, Text: b.String()}
 		}
 		b.WriteRune('.')
 	}
 
-	return Token{SPREAD, b.String()}
+	return token.Token{Kind: token.SPREAD, Text: b.String()}
 }
 
-func (l *Lexer) readComment() {
+func (l *lexer) readComment() {
 	l.consume()
-	for l.lookAhead != rune(EOF) &&
+	for l.lookAhead != rune(token.EOF) &&
 		(l.lookAhead >= '\u0020' || l.lookAhead == '\u0009') { // SourceCharacter but not LineTerminator
 		l.consume()
 	}
@@ -150,7 +150,7 @@ func (l *Lexer) readComment() {
 // IntValue : '-'? IntegerPart
 // FloatValue : '-'? IntegerPart ('.' Digit*)? ('e'|'E') '-'? Digit+
 // IntegerPart : '0' | NonZeroDigit Digit*
-func (l *Lexer) readNumber() Token {
+func (l *lexer) readNumber() token.Token {
 	var b bytes.Buffer
 	if l.lookAhead == '-' {
 		b.WriteRune('-')
@@ -164,7 +164,7 @@ func (l *Lexer) readNumber() Token {
 		if '0' <= l.lookAhead && l.lookAhead <= '9' {
 			b.WriteRune(l.lookAhead)
 			l.consume()
-			return illegalToken(b.String())
+			return token.Token{Kind: token.ILLEGAL, Text: b.String()}
 		}
 	} else if '1' <= l.lookAhead && l.lookAhead <= '9' {
 		b.WriteRune(l.lookAhead)
@@ -176,7 +176,7 @@ func (l *Lexer) readNumber() Token {
 	} else {
 		b.WriteRune(l.lookAhead)
 		l.consume()
-		return illegalToken(b.String())
+		return token.Token{Kind: token.ILLEGAL, Text: b.String()}
 	}
 
 	var isFloat bool
@@ -191,7 +191,7 @@ func (l *Lexer) readNumber() Token {
 		} else {
 			b.WriteRune(l.lookAhead)
 			l.consume()
-			return illegalToken(b.String())
+			return token.Token{Kind: token.ILLEGAL, Text: b.String()}
 		}
 
 		for '0' <= l.lookAhead && l.lookAhead <= '9' {
@@ -216,7 +216,7 @@ func (l *Lexer) readNumber() Token {
 		} else {
 			b.WriteRune(l.lookAhead)
 			l.consume()
-			return illegalToken(b.String())
+			return token.Token{Kind: token.ILLEGAL, Text: b.String()}
 		}
 
 		for '0' <= l.lookAhead && l.lookAhead <= '9' {
@@ -226,13 +226,13 @@ func (l *Lexer) readNumber() Token {
 	}
 
 	if isFloat {
-		return Token{FLOAT, b.String()}
+		return token.Token{Kind: token.FLOAT, Text: b.String()}
 	}
 
-	return Token{INT, b.String()}
+	return token.Token{Kind: token.INT, Text: b.String()}
 }
 
-func (l *Lexer) readName() Token {
+func (l *lexer) readName() token.Token {
 	var b bytes.Buffer
 	b.WriteRune(l.lookAhead)
 	l.consume()
@@ -244,24 +244,24 @@ func (l *Lexer) readName() Token {
 		l.consume()
 	}
 
-	return Token{NAME, b.String()}
+	return token.Token{Kind: token.NAME, Text: b.String()}
 }
 
 // '"' ([\u0009\u0020-\uFFFF]|EscapedUnicode|EscapedChar)* '"'
 // EscapedUnicode: \u [0-9A-Fa-f]{4}
 // EscapedChar: \" \\ \/ \b \f \n \r \t
-func (l *Lexer) readString() Token {
+func (l *lexer) readString() token.Token {
 	var b bytes.Buffer
 	b.WriteRune('"')
 	l.consume()
 
-	for l.lookAhead != rune(EOF) && l.lookAhead != '"' && l.lookAhead != '\u000A' && l.lookAhead != '\u000D' {
+	for l.lookAhead != rune(token.EOF) && l.lookAhead != '"' && l.lookAhead != '\u000A' && l.lookAhead != '\u000D' {
 
 		// SourceCharacter
 		if l.lookAhead < '\u0020' && l.lookAhead != '\u0009' {
 			b.WriteRune(l.lookAhead)
 			l.consume()
-			return illegalToken(b.String())
+			return token.Token{Kind: token.ILLEGAL, Text: b.String()}
 		}
 
 		if l.lookAhead == '\\' { // Escaped Char and Unicode
@@ -308,13 +308,13 @@ func (l *Lexer) readString() Token {
 				ucode, err := strconv.Unquote(quote)
 				if err != nil {
 					b.WriteString(quote)
-					return illegalToken(b.String())
+					return token.Token{Kind: token.ILLEGAL, Text: b.String()}
 				}
 				b.WriteRune([]rune(ucode)[0])
 			default:
 				b.WriteRune(l.lookAhead)
 				l.consume()
-				return illegalToken(b.String())
+				return token.Token{Kind: token.ILLEGAL, Text: b.String()}
 			}
 		} else {
 			b.WriteRune(l.lookAhead)
@@ -325,11 +325,11 @@ func (l *Lexer) readString() Token {
 	if l.lookAhead != '"' {
 		b.WriteRune(l.lookAhead)
 		l.consume()
-		return illegalToken(b.String())
+		return token.Token{Kind: token.ILLEGAL, Text: b.String()}
 	}
 
 	b.WriteRune('"')
 	l.consume()
 	strVal := b.String()
-	return Token{STRING, strVal[1 : len(strVal)-1]}
+	return token.Token{Kind: token.STRING, Text: strVal[1 : len(strVal)-1]}
 }
