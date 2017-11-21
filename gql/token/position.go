@@ -73,7 +73,7 @@ func (s *FileSet) File(p Pos) *File {
 	return s.files[i]
 }
 
-// Position unpacks Pos and returns the detailed position.
+// Position converts Pos into a Position value.
 func (s *FileSet) Position(p Pos) Position {
 	f := s.File(p)
 	if f == nil {
