@@ -115,7 +115,7 @@ func IsKeyword(k Kind) bool {
 	return keywordBeg < k && k < keywordEnd
 }
 
-// TokenString returns the string representation of Kind.
-func TokenString(k Kind) string {
+// Stringify returns the string representation of Kind.
+func Stringify(k Kind) string {
 	return tokens[k]
 }

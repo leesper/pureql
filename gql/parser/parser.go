@@ -72,7 +72,7 @@ func (p *parser) parseDocument() error {
 }
 
 func (p *parser) definition() error {
-	if p.lookAhead(1).Text == token.TokenString(token.FRAGMENT) {
+	if p.lookAhead(1).Text == token.Stringify(token.FRAGMENT) {
 		return p.fragmentDefinition()
 	}
 	return p.operationDefinition()
@@ -99,21 +99,21 @@ func (p *parser) parseSchema() error {
 
 func (p *parser) schema() error {
 	switch p.lookAhead(1).Text {
-	case token.TokenString(token.INTERFACE):
+	case token.Stringify(token.INTERFACE):
 		return p.interfaceDefinition()
-	case token.TokenString(token.SCALAR):
+	case token.Stringify(token.SCALAR):
 		return p.scalarDefinition()
-	case token.TokenString(token.INPUT):
+	case token.Stringify(token.INPUT):
 		return p.inputObjectDefinition()
-	case token.TokenString(token.TYPE):
+	case token.Stringify(token.TYPE):
 		return p.typeDefinition()
-	case token.TokenString(token.EXTEND):
+	case token.Stringify(token.EXTEND):
 		return p.extendDefinition()
-	case token.TokenString(token.DIRECTIVE):
+	case token.Stringify(token.DIRECTIVE):
 		return p.directiveDefinition()
-	case token.TokenString(token.SCHEMA):
+	case token.Stringify(token.SCHEMA):
 		return p.schemaDefinition()
-	case token.TokenString(token.ENUM):
+	case token.Stringify(token.ENUM):
 		return p.enumDefinition()
 	default:
 		return p.unionDefinition()
@@ -133,9 +133,9 @@ func (p *parser) operationDefinition() error {
 				return ErrBadParse{
 					line: p.input.Line(),
 					expect: fmt.Sprintf("%s or %s or %s",
-						token.TokenString(token.QUERY),
-						token.TokenString(token.MUTATION),
-						token.TokenString(token.SUBSCRIPTION)),
+						token.Stringify(token.QUERY),
+						token.Stringify(token.MUTATION),
+						token.Stringify(token.SUBSCRIPTION)),
 					found: p.lookAhead(1),
 				}
 			}
@@ -281,13 +281,13 @@ func (p *parser) valueConst() error {
 		return p.objectValueConst()
 	default:
 		expect := fmt.Sprintf("%s/%s/%s/%s/%s/%s/%s",
-			token.TokenString(token.INT),
-			token.TokenString(token.FLOAT),
-			token.TokenString(token.STRING),
-			token.TokenString(token.NAME),
-			token.TokenString(token.DOLLAR),
-			token.TokenString(token.LBRACK),
-			token.TokenString(token.LBRACE))
+			token.Stringify(token.INT),
+			token.Stringify(token.FLOAT),
+			token.Stringify(token.STRING),
+			token.Stringify(token.NAME),
+			token.Stringify(token.DOLLAR),
+			token.Stringify(token.LBRACK),
+			token.Stringify(token.LBRACE))
 		return ErrBadParse{
 			line:   p.input.Line(),
 			expect: expect,
@@ -382,7 +382,7 @@ func (p *parser) selectionSet() error {
 
 func (p *parser) selection() error {
 	if p.lookAhead(1).Kind == token.SPREAD {
-		if p.lookAhead(2).Kind == token.NAME && p.lookAhead(2).Text != token.TokenString(token.ON) {
+		if p.lookAhead(2).Kind == token.NAME && p.lookAhead(2).Text != token.Stringify(token.ON) {
 			return p.fragmentSpread()
 		}
 		return p.inlineFragment()
@@ -430,7 +430,7 @@ func (p *parser) fragmentSpread() error {
 		return err
 	}
 
-	if p.lookAhead(1).Text == token.TokenString(token.ON) {
+	if p.lookAhead(1).Text == token.Stringify(token.ON) {
 		return ErrBadParse{
 			line:   p.input.Line(),
 			expect: "NAME but not *on*",
@@ -455,7 +455,7 @@ func (p *parser) inlineFragment() error {
 		return err
 	}
 
-	if p.lookAhead(1).Text == token.TokenString(token.ON) {
+	if p.lookAhead(1).Text == token.Stringify(token.ON) {
 		if err = p.typeCondition(); err != nil {
 			return err
 		}
@@ -550,13 +550,13 @@ func (p *parser) value() error {
 		return p.objectValue()
 	default:
 		expect := fmt.Sprintf("%s/%s/%s/%s/%s/%s/%s",
-			token.TokenString(token.INT),
-			token.TokenString(token.FLOAT),
-			token.TokenString(token.STRING),
-			token.TokenString(token.NAME),
-			token.TokenString(token.DOLLAR),
-			token.TokenString(token.LBRACK),
-			token.TokenString(token.LBRACE))
+			token.Stringify(token.INT),
+			token.Stringify(token.FLOAT),
+			token.Stringify(token.STRING),
+			token.Stringify(token.NAME),
+			token.Stringify(token.DOLLAR),
+			token.Stringify(token.LBRACK),
+			token.Stringify(token.LBRACE))
 		return ErrBadParse{
 			line:   p.input.Line(),
 			expect: expect,
@@ -696,7 +696,7 @@ func (p *parser) fragmentDefinition() error {
 		return err
 	}
 
-	if p.lookAhead(1).Text == token.TokenString(token.ON) {
+	if p.lookAhead(1).Text == token.Stringify(token.ON) {
 		return ErrBadParse{
 			line:   p.input.Line(),
 			expect: "NAME but not *on*",
@@ -728,7 +728,7 @@ func (p *parser) lookAhead(i int) token.Token {
 func (p *parser) match(k token.Kind) error {
 	// fmt.Println("DEBUG tok", p.lookAhead(1))
 	if token.IsKeyword(k) {
-		if p.lookAhead(1).Kind == token.NAME && p.lookAhead(1).Text == token.TokenString(k) {
+		if p.lookAhead(1).Kind == token.NAME && p.lookAhead(1).Text == token.Stringify(k) {
 			p.consume()
 			return nil
 		}
@@ -741,7 +741,7 @@ func (p *parser) match(k token.Kind) error {
 
 	return ErrBadParse{
 		line:   p.input.Line(),
-		expect: token.TokenString(k),
+		expect: token.Stringify(k),
 		found:  p.lookAhead(1),
 	}
 }
@@ -922,7 +922,7 @@ func (p *parser) typeDefinition() error {
 		return err
 	}
 
-	if p.lookAhead(1).Text == token.TokenString(token.IMPLEMENTS) {
+	if p.lookAhead(1).Text == token.Stringify(token.IMPLEMENTS) {
 		if err = p.implementsInterfaces(); err != nil {
 			return err
 		}
@@ -1064,9 +1064,9 @@ func (p *parser) operationTypeDefinition() error {
 				return ErrBadParse{
 					line: p.input.Line(),
 					expect: fmt.Sprintf("%s or %s or %s",
-						token.TokenString(token.QUERY),
-						token.TokenString(token.MUTATION),
-						token.TokenString(token.SUBSCRIPTION)),
+						token.Stringify(token.QUERY),
+						token.Stringify(token.MUTATION),
+						token.Stringify(token.SUBSCRIPTION)),
 					found: p.lookAhead(1),
 				}
 			}
