@@ -1,4 +1,4 @@
-package ql
+package gql
 
 import (
 	"errors"
