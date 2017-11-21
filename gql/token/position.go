@@ -43,6 +43,11 @@ func (pos Position) String() string {
 // where base and size are specified when adding the file to the file set.
 type Pos int
 
+// IsValid returns true if it is not NoPos.
+func (p Pos) IsValid() bool {
+	return p != NoPos
+}
+
 // The zero value for Pos is NoPos.
 const (
 	NoPos Pos = 0

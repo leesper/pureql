@@ -5,6 +5,12 @@ import (
 	"testing"
 )
 
+func TestNoPos(t *testing.T) {
+	if NoPos.IsValid() {
+		t.Error("NoPos should be invalid")
+	}
+}
+
 func TestPositionString(t *testing.T) {
 	pos := Position{
 		Filename: "valid",
