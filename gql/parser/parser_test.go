@@ -5,23 +5,23 @@ import (
 	"testing"
 )
 
-// func TestInvalidLexerOrK(t *testing.T) {
-// 	if newParser(nil, "") != nil {
-// 		t.Error("should return nil")
-// 	}
-//
-// 	if newParser([]byte("foobar"), "") == nil {
-// 		t.Error("should not return nil")
-// 	}
-//
-// 	if err := newParser(nil, "").parseDocument(); err == nil {
-// 		t.Error("should return error")
-// 	}
-//
-// 	if err := newParser(nil, "").parseSchema(); err == nil {
-// 		t.Error("should return error")
-// 	}
-// }
+func TestInvalidLexerOrK(t *testing.T) {
+	if newParser(nil, "") != nil {
+		t.Error("should return nil")
+	}
+
+	if newParser([]byte("foobar"), "") == nil {
+		t.Error("should not return nil")
+	}
+
+	if err := newParser(nil, "").parseDocument(); err == nil {
+		t.Error("should return error")
+	}
+
+	if err := newParser(nil, "").parseSchema(); err == nil {
+		t.Error("should return error")
+	}
+}
 
 func TestBadToken(t *testing.T) {
 	err := ParseDocument([]byte(`
