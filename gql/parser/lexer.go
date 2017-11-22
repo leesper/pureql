@@ -3,6 +3,7 @@ package parser
 import (
 	"bytes"
 	"fmt"
+	"go/token"
 	"io"
 	"strconv"
 )
@@ -10,14 +11,22 @@ import (
 type lexer struct {
 	input     *bytes.Reader
 	lookAhead rune
-	line      int
+	file      *token.File
 }
 
-func newLexer(source []byte) *lexer {
+func newLexer(source []byte, file *token.File) *lexer {
+	if source == nil {
+		return nil
+	}
+
+	if file == nil {
+		file = token.NewFileSet().AddFile("", -1, len(source))
+	}
+
 	reader := bytes.NewReader(source)
 	l := &lexer{
 		input: reader,
-		line:  1,
+		file:  file,
 	}
 
 	l.consume()
@@ -48,20 +57,30 @@ func (l *lexer) match(r rune) error {
 		strconv.QuoteRune(r), strconv.QuoteRune(l.lookAhead))
 }
 
-// Line returns the line number of current
-func (l *lexer) Line() int {
-	return l.line
+// Size() returns the original length of the underlying byte slice, Len() returns
+// the number of bytes unread, so Size - Len is the current offset.
+func (l *lexer) offset() int {
+	return int(l.input.Size()) - l.input.Len()
 }
 
-// Read consumes and returns a
-func (l *lexer) Read() Token {
+func (l *lexer) pos() token.Pos {
+	return l.file.Pos(l.offset())
+}
+
+// returns the line number of current offset.
+func (l *lexer) line() int {
+	return l.file.Line(l.pos())
+}
+
+// consumes and returns a token
+func (l *lexer) read() Token {
 	for l.lookAhead != rune(EOF) {
 		switch l.lookAhead {
 		case '#':
 			l.readComment()
 		case '\uFEFF', '\u0009', '\u0020', '\u000A', '\u000D', ',': // ignored
 			if l.lookAhead == '\u000A' { // new line
-				l.line++
+				l.file.AddLine(l.offset())
 			}
 			l.consume()
 			continue

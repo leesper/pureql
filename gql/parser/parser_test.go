@@ -6,23 +6,19 @@ import (
 )
 
 func TestInvalidLexerOrK(t *testing.T) {
-	if newParser(nil, 3) != nil {
+	if newParser(nil, "") != nil {
 		t.Error("should return nil")
 	}
 
-	if newParser(newLexer([]byte("foobar")), 1) != nil {
-		t.Error("should return nil")
+	if newParser([]byte("foobar"), "") == nil {
+		t.Error("should not return nil")
 	}
 
-	if newParser(nil, 0) != nil {
-		t.Error("should return nil")
-	}
-
-	if err := newParser(nil, 0).parseDocument(); err == nil {
+	if err := newParser(nil, "").parseDocument(); err == nil {
 		t.Error("should return error")
 	}
 
-	if err := newParser(nil, 0).parseSchema(); err == nil {
+	if err := newParser(nil, "").parseSchema(); err == nil {
 		t.Error("should return error")
 	}
 }
