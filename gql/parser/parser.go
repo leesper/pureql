@@ -17,12 +17,12 @@ func (e ErrBadParse) Error() string {
 }
 
 // ParseDocument returns ast.Document.
-func ParseDocument(document string) error {
+func ParseDocument(document []byte) error {
 	return newParser(newLexer(document), 2).parseDocument()
 }
 
 // ParseSchema returns ast.Schema.
-func ParseSchema(schema string) error {
+func ParseSchema(schema []byte) error {
 	return newParser(newLexer(schema), 2).parseSchema()
 }
 

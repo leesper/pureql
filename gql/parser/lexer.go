@@ -1,7 +1,6 @@
 package parser
 
 import (
-	"bufio"
 	"bytes"
 	"fmt"
 	"io"
@@ -10,14 +9,14 @@ import (
 )
 
 type lexer struct {
-	input     *bufio.Reader
+	input     *bytes.Reader
 	lookAhead rune
 	line      int
 }
 
-func newLexer(source string) *lexer {
-	source = strings.TrimRight(source, "\n\t\r ")
-	reader := bufio.NewReader(strings.NewReader(source))
+func newLexer(source []byte) *lexer {
+	source = []byte(strings.TrimRight(string(source), "\n\t\r "))
+	reader := bytes.NewReader(source)
 	l := &lexer{
 		input: reader,
 		line:  1,
