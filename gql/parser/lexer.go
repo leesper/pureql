@@ -60,7 +60,13 @@ func (l *lexer) match(r rune) error {
 // Size() returns the original length of the underlying byte slice, Len() returns
 // the number of bytes unread, so Size - Len is the current offset.
 func (l *lexer) offset() int {
-	return int(l.input.Size()) - l.input.Len()
+	offset := int(l.input.Size()) - l.input.Len()
+	return offset
+}
+
+// returns the number of bytes unread.
+func (l *lexer) len() int {
+	return l.input.Len()
 }
 
 func (l *lexer) pos(offset int) token.Pos {
@@ -80,8 +86,9 @@ func (l *lexer) line() int {
 	return l.file.Line(l.pos(l.offset()))
 }
 
-// consumes and returns a token
-func (l *lexer) read() Token {
+// consumes and returns a token and its offset
+func (l *lexer) read() (Token, int) {
+	var offs int
 	for l.lookAhead != rune(EOF) {
 		switch l.lookAhead {
 		case '#':
@@ -93,57 +100,80 @@ func (l *lexer) read() Token {
 			l.consume()
 			continue
 		case '!':
+			offs = l.offset()
 			l.consume()
-			return Token{Kind: BANG, Text: "!"}
+			return Token{Kind: BANG, Text: "!"}, offs
 		case '$':
+			offs = l.offset()
 			l.consume()
-			return Token{Kind: DOLLAR, Text: "$"}
+			return Token{Kind: DOLLAR, Text: "$"}, offs
 		case '(':
+			offs = l.offset()
 			l.consume()
-			return Token{Kind: LPAREN, Text: "("}
+			return Token{Kind: LPAREN, Text: "("}, offs
 		case ')':
+			offs = l.offset()
 			l.consume()
-			return Token{Kind: RPAREN, Text: ")"}
+			return Token{Kind: RPAREN, Text: ")"}, offs
 		case ':':
+			offs = l.offset()
 			l.consume()
-			return Token{Kind: COLON, Text: ":"}
+			return Token{Kind: COLON, Text: ":"}, offs
 		case '=':
+			offs = l.offset()
 			l.consume()
-			return Token{Kind: EQL, Text: "="}
+			return Token{Kind: EQL, Text: "="}, offs
 		case '@':
+			offs = l.offset()
 			l.consume()
-			return Token{Kind: AT, Text: "@"}
+			return Token{Kind: AT, Text: "@"}, offs
 		case '[':
+			offs = l.offset()
 			l.consume()
-			return Token{Kind: LBRACK, Text: "["}
+			return Token{Kind: LBRACK, Text: "["}, offs
 		case ']':
+			offs = l.offset()
 			l.consume()
-			return Token{Kind: RBRACK, Text: "]"}
+			return Token{Kind: RBRACK, Text: "]"}, offs
 		case '{':
+			offs = l.offset()
 			l.consume()
-			return Token{Kind: LBRACE, Text: "{"}
+			return Token{Kind: LBRACE, Text: "{"}, offs
 		case '|':
+			offs = l.offset()
 			l.consume()
-			return Token{Kind: PIPE, Text: "|"}
+			return Token{Kind: PIPE, Text: "|"}, offs
 		case '}':
+			offs = l.offset()
 			l.consume()
-			return Token{Kind: RBRACE, Text: "}"}
+			return Token{Kind: RBRACE, Text: "}"}, offs
 		case '.': // ...
-			return l.readSpread()
+			offs = l.offset()
+			tok := l.readSpread()
+			return tok, offs
 		case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-':
-			return l.readNumber()
+			offs = l.offset()
+			tok := l.readNumber()
+			return tok, offs
 		case 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o',
 			'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', 'A', 'B', 'C', 'D', 'E',
 			'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U',
 			'V', 'W', 'X', 'Y', 'Z', '_':
-			return l.readName()
+			offs = l.offset()
+			tok := l.readName()
+			return tok, offs
 		case '"':
-			return l.readString()
+			offs = l.offset()
+			tok := l.readString()
+			return tok, offs
 		default:
-			return Token{Kind: ILLEGAL, Text: string(l.lookAhead)}
+			offs = l.offset()
+			tok := Token{Kind: ILLEGAL, Text: string(l.lookAhead)}
+			l.consume()
+			return tok, offs
 		}
 	}
-	return TokenEOF
+	return TokenEOF, l.offset()
 }
 
 func (l *lexer) readSpread() Token {

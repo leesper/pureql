@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"go/token"
-	"strings"
 )
 
 // ErrBadParse for invalid parse.
@@ -20,13 +19,13 @@ func (e ErrBadParse) Error() string {
 
 // ParseDocument returns ast.Document.
 func ParseDocument(document []byte) error {
-	document = []byte(strings.TrimRight(string(document), "\n\t\r "))
+	// document = []byte(strings.TrimRight(string(document), "\n\t\r "))
 	return newParser(document, "").parseDocument()
 }
 
 // ParseSchema returns ast.Schema.
 func ParseSchema(schema []byte) error {
-	schema = []byte(strings.TrimRight(string(schema), "\n\t\r "))
+	// schema = []byte(strings.TrimRight(string(schema), "\n\t\r "))
 	return newParser(schema, "").parseSchema()
 }
 
@@ -738,15 +737,11 @@ func (p *parser) match(k Kind) error {
 }
 
 func (p *parser) consume() {
-	tok := p.input.read()
-	sz := len(tok.Text)
-	if tok.Kind == EOF || tok.Kind == ILLEGAL {
-		sz = 1
-	}
+	tok, offs := p.input.read()
 
 	// record the token and position of its first character
 	p.lookAheads[p.curr] = tok
-	p.tokenOffsets[p.curr] = p.input.offset() - sz - 1
+	p.tokenOffsets[p.curr] = offs - 1
 
 	p.curr = (p.curr + 1) % len(p.lookAheads)
 }

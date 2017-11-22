@@ -5,23 +5,23 @@ import (
 	"testing"
 )
 
-func TestInvalidLexerOrK(t *testing.T) {
-	if newParser(nil, "") != nil {
-		t.Error("should return nil")
-	}
-
-	if newParser([]byte("foobar"), "") == nil {
-		t.Error("should not return nil")
-	}
-
-	if err := newParser(nil, "").parseDocument(); err == nil {
-		t.Error("should return error")
-	}
-
-	if err := newParser(nil, "").parseSchema(); err == nil {
-		t.Error("should return error")
-	}
-}
+// func TestInvalidLexerOrK(t *testing.T) {
+// 	if newParser(nil, "") != nil {
+// 		t.Error("should return nil")
+// 	}
+//
+// 	if newParser([]byte("foobar"), "") == nil {
+// 		t.Error("should not return nil")
+// 	}
+//
+// 	if err := newParser(nil, "").parseDocument(); err == nil {
+// 		t.Error("should return error")
+// 	}
+//
+// 	if err := newParser(nil, "").parseSchema(); err == nil {
+// 		t.Error("should return error")
+// 	}
+// }
 
 func TestBadToken(t *testing.T) {
 	err := ParseDocument([]byte(`
@@ -31,7 +31,7 @@ query ф {
 	}
 }`))
 
-	if err.Error() != "2:7: expecting {, found 'ф'" {
+	if err.Error() != "2:8: expecting {, found 'ф'" {
 		t.Error(err)
 	}
 }
@@ -61,7 +61,7 @@ func TestParseInvalids(t *testing.T) {
 	if err == nil {
 		t.Errorf("expecting error, found nil")
 	}
-	expecting := "-: expecting NAME, found '<EOF>'"
+	expecting := "1:1: expecting NAME, found '<EOF>'"
 	if err.Error() != expecting {
 		t.Errorf("expecting %s, found %s", expecting, err)
 	}
@@ -73,7 +73,7 @@ fragment MissingOn Type
 	if err == nil {
 		t.Error("expecting error, found nil")
 	}
-	expecting = "3:19: expecting on, found 'Type'"
+	expecting = "3:20: expecting on, found 'Type'"
 	if err.Error() != expecting {
 		t.Errorf("expecting %s, found %s", expecting, err)
 	}
@@ -100,7 +100,7 @@ fragment MissingOn Type
 	if err == nil {
 		t.Error("expecting error, found nil")
 	}
-	expecting = "-: expecting query or mutation or subscription, found '...'"
+	expecting = "1:1: expecting query or mutation or subscription, found '...'"
 	if err.Error() != expecting {
 		t.Errorf("expecting %s, found %s", expecting, err)
 	}
@@ -109,7 +109,7 @@ fragment MissingOn Type
 	if err == nil {
 		t.Error("expecting error, found nil")
 	}
-	expecting = "1:4: expecting {, found '<EOF>'"
+	expecting = "1:5: expecting {, found '<EOF>'"
 	if err.Error() != expecting {
 		t.Errorf("expecting %s, found %s", expecting, err)
 	}
@@ -145,7 +145,7 @@ func TestParseInvalidSpreadOfOn(t *testing.T) {
 	if err == nil {
 		t.Error("should return error")
 	}
-	expecting := "1:8: expecting NAME, found '}'"
+	expecting := "1:9: expecting NAME, found '}'"
 	if err.Error() != expecting {
 		t.Errorf("expecting %s, found %s", expecting, err)
 	}
@@ -185,9 +185,9 @@ func TestParseQueryFile(t *testing.T) {
 # LICENSE file in the root directory of this source tree.
 
 query queryName($foo: ComplexType, $site: Site = MOBILE) {
-  whoever123is: node(id: [123, 456]) {
-    id ,
-    ... on User @defer {
+	whoever123is: node(id: [123, 456]) {
+		id ,
+		... on User @defer {
       field2 {
         id ,
         alias: field1(first:10, after:$foo,) @include(if: $foo) {
