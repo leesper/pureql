@@ -70,7 +70,7 @@ const (
 
 var tokens = map[Kind]string{
 	ILLEGAL:      "ILLEGAL",
-	EOF:          "EOF",
+	EOF:          "<EOF>",
 	BANG:         "!",
 	DOLLAR:       "$",
 	LPAREN:       "(",

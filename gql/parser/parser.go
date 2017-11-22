@@ -9,13 +9,13 @@ import (
 
 // ErrBadParse for invalid parse.
 type ErrBadParse struct {
-	line   int
+	pos    token.Position
 	expect string
-	found  Token
+	found  string
 }
 
 func (e ErrBadParse) Error() string {
-	return fmt.Sprintf("line %d: expecting %s, found %s", e.line, e.expect, e.found)
+	return fmt.Sprintf("%s: expecting %s, found '%s'", e.pos, e.expect, e.found)
 }
 
 // ParseDocument returns ast.Document.
@@ -32,10 +32,11 @@ func ParseSchema(schema []byte) error {
 
 // Parser converts GraphQL source into AST.
 type parser struct {
-	input      *lexer
-	lookAheads []Token
-	set        *token.FileSet
-	curr       int
+	input        *lexer
+	lookAheads   []Token // LL(2), look two tokens ahead
+	tokenOffsets []int   // corresponding offset of two tokens
+	set          *token.FileSet
+	curr         int
 }
 
 func newParser(source []byte, filename string) *parser {
@@ -48,9 +49,10 @@ func newParser(source []byte, filename string) *parser {
 	l := newLexer(source, f)
 
 	p := &parser{
-		input:      l,
-		lookAheads: make([]Token, 2), // LL(2)
-		set:        s,
+		input:        l,
+		lookAheads:   make([]Token, 2),
+		tokenOffsets: make([]int, 2),
+		set:          s,
 	}
 
 	for i := 0; i < 2; i++ {
@@ -138,14 +140,11 @@ func (p *parser) operationDefinition() error {
 	if err = p.match(QUERY); err != nil {
 		if err = p.match(MUTATION); err != nil {
 			if err = p.match(SUBSCRIPTION); err != nil {
-				return ErrBadParse{
-					line: p.input.line(),
-					expect: fmt.Sprintf("%s or %s or %s",
-						Stringify(QUERY),
-						Stringify(MUTATION),
-						Stringify(SUBSCRIPTION)),
-					found: p.lookAhead(1),
-				}
+				expect := fmt.Sprintf("%s or %s or %s",
+					Stringify(QUERY),
+					Stringify(MUTATION),
+					Stringify(SUBSCRIPTION))
+				return p.parseError(expect)
 			}
 		}
 	}
@@ -296,11 +295,7 @@ func (p *parser) valueConst() error {
 			Stringify(DOLLAR),
 			Stringify(LBRACK),
 			Stringify(LBRACE))
-		return ErrBadParse{
-			line:   p.input.line(),
-			expect: expect,
-			found:  p.lookAhead(1),
-		}
+		return p.parseError(expect)
 	}
 }
 
@@ -439,11 +434,7 @@ func (p *parser) fragmentSpread() error {
 	}
 
 	if p.lookAhead(1).Text == Stringify(ON) {
-		return ErrBadParse{
-			line:   p.input.line(),
-			expect: "NAME but not *on*",
-			found:  p.lookAhead(1),
-		}
+		return p.parseError("NAME but not *on*")
 	}
 
 	if err = p.match(NAME); err != nil {
@@ -565,11 +556,7 @@ func (p *parser) value() error {
 			Stringify(DOLLAR),
 			Stringify(LBRACK),
 			Stringify(LBRACE))
-		return ErrBadParse{
-			line:   p.input.line(),
-			expect: expect,
-			found:  p.lookAhead(1),
-		}
+		return p.parseError(expect)
 	}
 }
 
@@ -705,11 +692,7 @@ func (p *parser) fragmentDefinition() error {
 	}
 
 	if p.lookAhead(1).Text == Stringify(ON) {
-		return ErrBadParse{
-			line:   p.input.line(),
-			expect: "NAME but not *on*",
-			found:  p.lookAhead(1),
-		}
+		return p.parseError("NAME but not *on*")
 	}
 
 	if err = p.match(NAME); err != nil {
@@ -733,6 +716,10 @@ func (p *parser) lookAhead(i int) Token {
 	return p.lookAheads[(p.curr+i-1)%len(p.lookAheads)]
 }
 
+func (p *parser) tokenOffset(i int) int {
+	return p.tokenOffsets[(p.curr+i-1)%len(p.tokenOffsets)]
+}
+
 func (p *parser) match(k Kind) error {
 	// fmt.Println("DEBUG tok", p.lookAhead(1))
 	if IsKeyword(k) {
@@ -747,16 +734,29 @@ func (p *parser) match(k Kind) error {
 		}
 	}
 
-	return ErrBadParse{
-		line:   p.input.line(),
-		expect: Stringify(k),
-		found:  p.lookAhead(1),
-	}
+	return p.parseError(Stringify(k))
 }
 
 func (p *parser) consume() {
-	p.lookAheads[p.curr] = p.input.read()
+	tok := p.input.read()
+	sz := len(tok.Text)
+	if tok.Kind == EOF || tok.Kind == ILLEGAL {
+		sz = 1
+	}
+
+	// record the token and position of its first character
+	p.lookAheads[p.curr] = tok
+	p.tokenOffsets[p.curr] = p.input.offset() - sz - 1
+
 	p.curr = (p.curr + 1) % len(p.lookAheads)
+}
+
+func (p *parser) parseError(expect string) error {
+	return ErrBadParse{
+		pos:    p.input.positionFor(p.tokenOffset(1)),
+		expect: expect,
+		found:  p.lookAhead(1).Text,
+	}
 }
 
 func (p *parser) interfaceDefinition() error {
@@ -1069,14 +1069,11 @@ func (p *parser) operationTypeDefinition() error {
 	if err = p.match(QUERY); err != nil {
 		if err = p.match(MUTATION); err != nil {
 			if err = p.match(SUBSCRIPTION); err != nil {
-				return ErrBadParse{
-					line: p.input.line(),
-					expect: fmt.Sprintf("%s or %s or %s",
-						Stringify(QUERY),
-						Stringify(MUTATION),
-						Stringify(SUBSCRIPTION)),
-					found: p.lookAhead(1),
-				}
+				expect := fmt.Sprintf("%s or %s or %s",
+					Stringify(QUERY),
+					Stringify(MUTATION),
+					Stringify(SUBSCRIPTION))
+				return p.parseError(expect)
 			}
 		}
 	}

@@ -31,7 +31,7 @@ query ф {
 	}
 }`))
 
-	if err.Error() != "line 2: expecting {, found <'ф', ILLEGAL>" {
+	if err.Error() != "2:7: expecting {, found 'ф'" {
 		t.Error(err)
 	}
 }
@@ -61,7 +61,7 @@ func TestParseInvalids(t *testing.T) {
 	if err == nil {
 		t.Errorf("expecting error, found nil")
 	}
-	expecting := "line 1: expecting NAME, found <'EOF', EOF>"
+	expecting := "-: expecting NAME, found '<EOF>'"
 	if err.Error() != expecting {
 		t.Errorf("expecting %s, found %s", expecting, err)
 	}
@@ -73,7 +73,7 @@ fragment MissingOn Type
 	if err == nil {
 		t.Error("expecting error, found nil")
 	}
-	expecting = "line 3: expecting on, found <'Type', NAME>"
+	expecting = "3:19: expecting on, found 'Type'"
 	if err.Error() != expecting {
 		t.Errorf("expecting %s, found %s", expecting, err)
 	}
@@ -82,7 +82,7 @@ fragment MissingOn Type
 	if err == nil {
 		t.Error("expecting error, found nil")
 	}
-	expecting = "line 1: expecting NAME, found <'{', {>"
+	expecting = "1:10: expecting NAME, found '{'"
 	if err.Error() != expecting {
 		t.Errorf("expecting %s, found %s", expecting, err)
 	}
@@ -91,7 +91,7 @@ fragment MissingOn Type
 	if err == nil {
 		t.Error("expecting error, found nil")
 	}
-	expecting = "line 1: expecting query or mutation or subscription, found <'notAnOper', NAME>"
+	expecting = "1:1: expecting query or mutation or subscription, found 'notAnOper'"
 	if err.Error() != expecting {
 		t.Errorf("expecting %s, found %s", expecting, err)
 	}
@@ -100,7 +100,7 @@ fragment MissingOn Type
 	if err == nil {
 		t.Error("expecting error, found nil")
 	}
-	expecting = "line 1: expecting query or mutation or subscription, found <'...', ...>"
+	expecting = "-: expecting query or mutation or subscription, found '...'"
 	if err.Error() != expecting {
 		t.Errorf("expecting %s, found %s", expecting, err)
 	}
@@ -109,7 +109,7 @@ fragment MissingOn Type
 	if err == nil {
 		t.Error("expecting error, found nil")
 	}
-	expecting = "line 1: expecting {, found <'EOF', EOF>"
+	expecting = "1:4: expecting {, found '<EOF>'"
 	if err.Error() != expecting {
 		t.Errorf("expecting %s, found %s", expecting, err)
 	}
@@ -134,7 +134,7 @@ func TestParseInvalidUseOn(t *testing.T) {
 	if err == nil {
 		t.Error("should return error")
 	}
-	expecting := "line 1: expecting NAME but not *on*, found <'on', NAME>"
+	expecting := "1:10: expecting NAME but not *on*, found 'on'"
 	if err.Error() != expecting {
 		t.Errorf("expecting %s, found %s", expecting, err)
 	}
@@ -145,7 +145,7 @@ func TestParseInvalidSpreadOfOn(t *testing.T) {
 	if err == nil {
 		t.Error("should return error")
 	}
-	expecting := "line 1: expecting NAME, found <'}', }>"
+	expecting := "1:8: expecting NAME, found '}'"
 	if err.Error() != expecting {
 		t.Errorf("expecting %s, found %s", expecting, err)
 	}

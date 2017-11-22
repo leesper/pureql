@@ -63,13 +63,21 @@ func (l *lexer) offset() int {
 	return int(l.input.Size()) - l.input.Len()
 }
 
-func (l *lexer) pos() token.Pos {
-	return l.file.Pos(l.offset())
+func (l *lexer) pos(offset int) token.Pos {
+	return l.file.Pos(offset)
+}
+
+func (l *lexer) position() token.Position {
+	return l.file.PositionFor(l.pos(l.offset()), false)
+}
+
+func (l *lexer) positionFor(offset int) token.Position {
+	return l.file.PositionFor(l.pos(offset), false)
 }
 
 // returns the line number of current offset.
 func (l *lexer) line() int {
-	return l.file.Line(l.pos())
+	return l.file.Line(l.pos(l.offset()))
 }
 
 // consumes and returns a token
