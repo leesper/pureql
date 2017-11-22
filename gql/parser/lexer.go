@@ -7,8 +7,6 @@ import (
 	"io"
 	"strconv"
 	"strings"
-
-	"github.com/leesper/pureql/gql/token"
 )
 
 type lexer struct {
@@ -34,9 +32,9 @@ func (l *lexer) consume() {
 	r, _, err := l.input.ReadRune()
 	if err != nil {
 		if err == io.EOF {
-			r = rune(token.EOF)
+			r = rune(EOF)
 		} else {
-			r = rune(token.ILLEGAL)
+			r = rune(ILLEGAL)
 		}
 	}
 
@@ -53,14 +51,14 @@ func (l *lexer) match(r rune) error {
 		strconv.QuoteRune(r), strconv.QuoteRune(l.lookAhead))
 }
 
-// Line returns the line number of current token.
+// Line returns the line number of current
 func (l *lexer) Line() int {
 	return l.line
 }
 
-// Read consumes and returns a token.
-func (l *lexer) Read() token.Token {
-	for l.lookAhead != rune(token.EOF) {
+// Read consumes and returns a
+func (l *lexer) Read() Token {
+	for l.lookAhead != rune(EOF) {
 		switch l.lookAhead {
 		case '#':
 			l.readComment()
@@ -72,40 +70,40 @@ func (l *lexer) Read() token.Token {
 			continue
 		case '!':
 			l.consume()
-			return token.Token{Kind: token.BANG, Text: "!"}
+			return Token{Kind: BANG, Text: "!"}
 		case '$':
 			l.consume()
-			return token.Token{Kind: token.DOLLAR, Text: "$"}
+			return Token{Kind: DOLLAR, Text: "$"}
 		case '(':
 			l.consume()
-			return token.Token{Kind: token.LPAREN, Text: "("}
+			return Token{Kind: LPAREN, Text: "("}
 		case ')':
 			l.consume()
-			return token.Token{Kind: token.RPAREN, Text: ")"}
+			return Token{Kind: RPAREN, Text: ")"}
 		case ':':
 			l.consume()
-			return token.Token{Kind: token.COLON, Text: ":"}
+			return Token{Kind: COLON, Text: ":"}
 		case '=':
 			l.consume()
-			return token.Token{Kind: token.EQL, Text: "="}
+			return Token{Kind: EQL, Text: "="}
 		case '@':
 			l.consume()
-			return token.Token{Kind: token.AT, Text: "@"}
+			return Token{Kind: AT, Text: "@"}
 		case '[':
 			l.consume()
-			return token.Token{Kind: token.LBRACK, Text: "["}
+			return Token{Kind: LBRACK, Text: "["}
 		case ']':
 			l.consume()
-			return token.Token{Kind: token.RBRACK, Text: "]"}
+			return Token{Kind: RBRACK, Text: "]"}
 		case '{':
 			l.consume()
-			return token.Token{Kind: token.LBRACE, Text: "{"}
+			return Token{Kind: LBRACE, Text: "{"}
 		case '|':
 			l.consume()
-			return token.Token{Kind: token.PIPE, Text: "|"}
+			return Token{Kind: PIPE, Text: "|"}
 		case '}':
 			l.consume()
-			return token.Token{Kind: token.RBRACE, Text: "}"}
+			return Token{Kind: RBRACE, Text: "}"}
 		case '.': // ...
 			return l.readSpread()
 		case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-':
@@ -118,30 +116,30 @@ func (l *lexer) Read() token.Token {
 		case '"':
 			return l.readString()
 		default:
-			return token.Token{Kind: token.ILLEGAL, Text: string(l.lookAhead)}
+			return Token{Kind: ILLEGAL, Text: string(l.lookAhead)}
 		}
 	}
-	return token.TokenEOF
+	return TokenEOF
 }
 
-func (l *lexer) readSpread() token.Token {
+func (l *lexer) readSpread() Token {
 	// ...
 	var b bytes.Buffer
 	var err error
 	for i := 0; i < 3; i++ {
 		if err = l.match('.'); err != nil {
 			b.WriteRune(l.lookAhead)
-			return token.Token{Kind: token.ILLEGAL, Text: b.String()}
+			return Token{Kind: ILLEGAL, Text: b.String()}
 		}
 		b.WriteRune('.')
 	}
 
-	return token.Token{Kind: token.SPREAD, Text: b.String()}
+	return Token{Kind: SPREAD, Text: b.String()}
 }
 
 func (l *lexer) readComment() {
 	l.consume()
-	for l.lookAhead != rune(token.EOF) &&
+	for l.lookAhead != rune(EOF) &&
 		(l.lookAhead >= '\u0020' || l.lookAhead == '\u0009') { // SourceCharacter but not LineTerminator
 		l.consume()
 	}
@@ -150,7 +148,7 @@ func (l *lexer) readComment() {
 // IntValue : '-'? IntegerPart
 // FloatValue : '-'? IntegerPart ('.' Digit*)? ('e'|'E') '-'? Digit+
 // IntegerPart : '0' | NonZeroDigit Digit*
-func (l *lexer) readNumber() token.Token {
+func (l *lexer) readNumber() Token {
 	var b bytes.Buffer
 	if l.lookAhead == '-' {
 		b.WriteRune('-')
@@ -164,7 +162,7 @@ func (l *lexer) readNumber() token.Token {
 		if '0' <= l.lookAhead && l.lookAhead <= '9' {
 			b.WriteRune(l.lookAhead)
 			l.consume()
-			return token.Token{Kind: token.ILLEGAL, Text: b.String()}
+			return Token{Kind: ILLEGAL, Text: b.String()}
 		}
 	} else if '1' <= l.lookAhead && l.lookAhead <= '9' {
 		b.WriteRune(l.lookAhead)
@@ -176,7 +174,7 @@ func (l *lexer) readNumber() token.Token {
 	} else {
 		b.WriteRune(l.lookAhead)
 		l.consume()
-		return token.Token{Kind: token.ILLEGAL, Text: b.String()}
+		return Token{Kind: ILLEGAL, Text: b.String()}
 	}
 
 	var isFloat bool
@@ -191,7 +189,7 @@ func (l *lexer) readNumber() token.Token {
 		} else {
 			b.WriteRune(l.lookAhead)
 			l.consume()
-			return token.Token{Kind: token.ILLEGAL, Text: b.String()}
+			return Token{Kind: ILLEGAL, Text: b.String()}
 		}
 
 		for '0' <= l.lookAhead && l.lookAhead <= '9' {
@@ -216,7 +214,7 @@ func (l *lexer) readNumber() token.Token {
 		} else {
 			b.WriteRune(l.lookAhead)
 			l.consume()
-			return token.Token{Kind: token.ILLEGAL, Text: b.String()}
+			return Token{Kind: ILLEGAL, Text: b.String()}
 		}
 
 		for '0' <= l.lookAhead && l.lookAhead <= '9' {
@@ -226,13 +224,13 @@ func (l *lexer) readNumber() token.Token {
 	}
 
 	if isFloat {
-		return token.Token{Kind: token.FLOAT, Text: b.String()}
+		return Token{Kind: FLOAT, Text: b.String()}
 	}
 
-	return token.Token{Kind: token.INT, Text: b.String()}
+	return Token{Kind: INT, Text: b.String()}
 }
 
-func (l *lexer) readName() token.Token {
+func (l *lexer) readName() Token {
 	var b bytes.Buffer
 	b.WriteRune(l.lookAhead)
 	l.consume()
@@ -244,24 +242,24 @@ func (l *lexer) readName() token.Token {
 		l.consume()
 	}
 
-	return token.Token{Kind: token.NAME, Text: b.String()}
+	return Token{Kind: NAME, Text: b.String()}
 }
 
 // '"' ([\u0009\u0020-\uFFFF]|EscapedUnicode|EscapedChar)* '"'
 // EscapedUnicode: \u [0-9A-Fa-f]{4}
 // EscapedChar: \" \\ \/ \b \f \n \r \t
-func (l *lexer) readString() token.Token {
+func (l *lexer) readString() Token {
 	var b bytes.Buffer
 	b.WriteRune('"')
 	l.consume()
 
-	for l.lookAhead != rune(token.EOF) && l.lookAhead != '"' && l.lookAhead != '\u000A' && l.lookAhead != '\u000D' {
+	for l.lookAhead != rune(EOF) && l.lookAhead != '"' && l.lookAhead != '\u000A' && l.lookAhead != '\u000D' {
 
 		// SourceCharacter
 		if l.lookAhead < '\u0020' && l.lookAhead != '\u0009' {
 			b.WriteRune(l.lookAhead)
 			l.consume()
-			return token.Token{Kind: token.ILLEGAL, Text: b.String()}
+			return Token{Kind: ILLEGAL, Text: b.String()}
 		}
 
 		if l.lookAhead == '\\' { // Escaped Char and Unicode
@@ -308,13 +306,13 @@ func (l *lexer) readString() token.Token {
 				ucode, err := strconv.Unquote(quote)
 				if err != nil {
 					b.WriteString(quote)
-					return token.Token{Kind: token.ILLEGAL, Text: b.String()}
+					return Token{Kind: ILLEGAL, Text: b.String()}
 				}
 				b.WriteRune([]rune(ucode)[0])
 			default:
 				b.WriteRune(l.lookAhead)
 				l.consume()
-				return token.Token{Kind: token.ILLEGAL, Text: b.String()}
+				return Token{Kind: ILLEGAL, Text: b.String()}
 			}
 		} else {
 			b.WriteRune(l.lookAhead)
@@ -325,11 +323,11 @@ func (l *lexer) readString() token.Token {
 	if l.lookAhead != '"' {
 		b.WriteRune(l.lookAhead)
 		l.consume()
-		return token.Token{Kind: token.ILLEGAL, Text: b.String()}
+		return Token{Kind: ILLEGAL, Text: b.String()}
 	}
 
 	b.WriteRune('"')
 	l.consume()
 	strVal := b.String()
-	return token.Token{Kind: token.STRING, Text: strVal[1 : len(strVal)-1]}
+	return Token{Kind: STRING, Text: strVal[1 : len(strVal)-1]}
 }

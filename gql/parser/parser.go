@@ -3,15 +3,13 @@ package parser
 import (
 	"errors"
 	"fmt"
-
-	"github.com/leesper/pureql/gql/token"
 )
 
 // ErrBadParse for invalid parse.
 type ErrBadParse struct {
 	line   int
 	expect string
-	found  token.Token
+	found  Token
 }
 
 func (e ErrBadParse) Error() string {
@@ -31,7 +29,7 @@ func ParseSchema(schema string) error {
 // Parser converts GraphQL source into AST.
 type parser struct {
 	input      *lexer
-	lookAheads []token.Token
+	lookAheads []Token
 	curr       int
 }
 
@@ -42,7 +40,7 @@ func newParser(l *lexer, k int) *parser {
 
 	p := &parser{
 		input:      l,
-		lookAheads: make([]token.Token, k),
+		lookAheads: make([]Token, k),
 	}
 
 	for i := 0; i < k; i++ {
@@ -62,7 +60,7 @@ func (p *parser) parseDocument() error {
 		return err
 	}
 
-	for p.lookAhead(1) != token.TokenEOF {
+	for p.lookAhead(1) != TokenEOF {
 		err = p.definition()
 		if err != nil {
 			return err
@@ -72,7 +70,7 @@ func (p *parser) parseDocument() error {
 }
 
 func (p *parser) definition() error {
-	if p.lookAhead(1).Text == token.Stringify(token.FRAGMENT) {
+	if p.lookAhead(1).Text == Stringify(FRAGMENT) {
 		return p.fragmentDefinition()
 	}
 	return p.operationDefinition()
@@ -88,7 +86,7 @@ func (p *parser) parseSchema() error {
 		return err
 	}
 
-	for p.lookAhead(1) != token.TokenEOF {
+	for p.lookAhead(1) != TokenEOF {
 		err = p.schema()
 		if err != nil {
 			return err
@@ -99,21 +97,21 @@ func (p *parser) parseSchema() error {
 
 func (p *parser) schema() error {
 	switch p.lookAhead(1).Text {
-	case token.Stringify(token.INTERFACE):
+	case Stringify(INTERFACE):
 		return p.interfaceDefinition()
-	case token.Stringify(token.SCALAR):
+	case Stringify(SCALAR):
 		return p.scalarDefinition()
-	case token.Stringify(token.INPUT):
+	case Stringify(INPUT):
 		return p.inputObjectDefinition()
-	case token.Stringify(token.TYPE):
+	case Stringify(TYPE):
 		return p.typeDefinition()
-	case token.Stringify(token.EXTEND):
+	case Stringify(EXTEND):
 		return p.extendDefinition()
-	case token.Stringify(token.DIRECTIVE):
+	case Stringify(DIRECTIVE):
 		return p.directiveDefinition()
-	case token.Stringify(token.SCHEMA):
+	case Stringify(SCHEMA):
 		return p.schemaDefinition()
-	case token.Stringify(token.ENUM):
+	case Stringify(ENUM):
 		return p.enumDefinition()
 	default:
 		return p.unionDefinition()
@@ -121,38 +119,38 @@ func (p *parser) schema() error {
 }
 
 func (p *parser) operationDefinition() error {
-	if p.lookAhead(1).Kind == token.LBRACE {
+	if p.lookAhead(1).Kind == LBRACE {
 		return p.selectionSet()
 	}
 
 	// TODO: subscription
 	var err error
-	if err = p.match(token.QUERY); err != nil {
-		if err = p.match(token.MUTATION); err != nil {
-			if err = p.match(token.SUBSCRIPTION); err != nil {
+	if err = p.match(QUERY); err != nil {
+		if err = p.match(MUTATION); err != nil {
+			if err = p.match(SUBSCRIPTION); err != nil {
 				return ErrBadParse{
 					line: p.input.Line(),
 					expect: fmt.Sprintf("%s or %s or %s",
-						token.Stringify(token.QUERY),
-						token.Stringify(token.MUTATION),
-						token.Stringify(token.SUBSCRIPTION)),
+						Stringify(QUERY),
+						Stringify(MUTATION),
+						Stringify(SUBSCRIPTION)),
 					found: p.lookAhead(1),
 				}
 			}
 		}
 	}
 
-	if p.lookAhead(1).Kind == token.NAME {
-		p.match(token.NAME)
+	if p.lookAhead(1).Kind == NAME {
+		p.match(NAME)
 	}
 
-	if p.lookAhead(1).Kind == token.LPAREN {
+	if p.lookAhead(1).Kind == LPAREN {
 		if err = p.variableDefinitions(); err != nil {
 			return err
 		}
 	}
 
-	if p.lookAhead(1).Kind == token.AT {
+	if p.lookAhead(1).Kind == AT {
 		if err = p.directives(); err != nil {
 			return err
 		}
@@ -162,7 +160,7 @@ func (p *parser) operationDefinition() error {
 }
 
 func (p *parser) variableDefinitions() error {
-	err := p.match(token.LPAREN)
+	err := p.match(LPAREN)
 	if err != nil {
 		return err
 	}
@@ -171,13 +169,13 @@ func (p *parser) variableDefinitions() error {
 		return err
 	}
 
-	for p.lookAhead(1).Kind != token.RPAREN {
+	for p.lookAhead(1).Kind != RPAREN {
 		if err = p.variableDefinition(); err != nil {
 			return err
 		}
 	}
 
-	if err = p.match(token.RPAREN); err != nil {
+	if err = p.match(RPAREN); err != nil {
 		return err
 	}
 
@@ -190,7 +188,7 @@ func (p *parser) variableDefinition() error {
 		return err
 	}
 
-	if err = p.match(token.COLON); err != nil {
+	if err = p.match(COLON); err != nil {
 		return err
 	}
 
@@ -198,7 +196,7 @@ func (p *parser) variableDefinition() error {
 		return err
 	}
 
-	if p.lookAhead(1).Kind == token.EQL {
+	if p.lookAhead(1).Kind == EQL {
 		return p.defaultValue()
 	}
 
@@ -207,7 +205,7 @@ func (p *parser) variableDefinition() error {
 
 func (p *parser) types() error {
 	var err error
-	if p.lookAhead(1).Kind == token.NAME {
+	if p.lookAhead(1).Kind == NAME {
 		if err = p.namedType(); err != nil {
 			return err
 		}
@@ -218,19 +216,19 @@ func (p *parser) types() error {
 	}
 
 	// non-null
-	if p.lookAhead(1).Kind == token.BANG {
-		return p.match(token.BANG)
+	if p.lookAhead(1).Kind == BANG {
+		return p.match(BANG)
 	}
 
 	return nil
 }
 
 func (p *parser) namedType() error {
-	return p.match(token.NAME)
+	return p.match(NAME)
 }
 
 func (p *parser) listType() error {
-	err := p.match(token.LBRACK)
+	err := p.match(LBRACK)
 	if err != nil {
 		return err
 	}
@@ -239,7 +237,7 @@ func (p *parser) listType() error {
 		return err
 	}
 
-	if err = p.match(token.RBRACK); err != nil {
+	if err = p.match(RBRACK); err != nil {
 		return err
 	}
 
@@ -247,7 +245,7 @@ func (p *parser) listType() error {
 }
 
 func (p *parser) defaultValue() error {
-	err := p.match(token.EQL)
+	err := p.match(EQL)
 	if err != nil {
 		return err
 	}
@@ -261,13 +259,13 @@ func (p *parser) defaultValue() error {
 
 func (p *parser) valueConst() error {
 	switch p.lookAhead(1).Kind {
-	case token.INT:
-		return p.match(token.INT)
-	case token.FLOAT:
-		return p.match(token.FLOAT)
-	case token.STRING:
-		return p.match(token.STRING)
-	case token.NAME:
+	case INT:
+		return p.match(INT)
+	case FLOAT:
+		return p.match(FLOAT)
+	case STRING:
+		return p.match(STRING)
+	case NAME:
 		text := p.lookAhead(1).Text
 		if text == "true" || text == "false" {
 			return p.booleanValue()
@@ -275,19 +273,19 @@ func (p *parser) valueConst() error {
 			return p.nullValue()
 		}
 		return p.enumValue()
-	case token.LBRACK:
+	case LBRACK:
 		return p.listValueConst()
-	case token.LBRACE:
+	case LBRACE:
 		return p.objectValueConst()
 	default:
 		expect := fmt.Sprintf("%s/%s/%s/%s/%s/%s/%s",
-			token.Stringify(token.INT),
-			token.Stringify(token.FLOAT),
-			token.Stringify(token.STRING),
-			token.Stringify(token.NAME),
-			token.Stringify(token.DOLLAR),
-			token.Stringify(token.LBRACK),
-			token.Stringify(token.LBRACE))
+			Stringify(INT),
+			Stringify(FLOAT),
+			Stringify(STRING),
+			Stringify(NAME),
+			Stringify(DOLLAR),
+			Stringify(LBRACK),
+			Stringify(LBRACE))
 		return ErrBadParse{
 			line:   p.input.Line(),
 			expect: expect,
@@ -297,58 +295,58 @@ func (p *parser) valueConst() error {
 }
 
 func (p *parser) listValueConst() error {
-	err := p.match(token.LBRACK)
+	err := p.match(LBRACK)
 	if err != nil {
 		return err
 	}
 
-	if p.lookAhead(1).Kind == token.RBRACK {
-		return p.match(token.RBRACK)
+	if p.lookAhead(1).Kind == RBRACK {
+		return p.match(RBRACK)
 	}
 
 	if err = p.valueConst(); err != nil {
 		return err
 	}
 
-	for p.lookAhead(1).Kind != token.RBRACK {
+	for p.lookAhead(1).Kind != RBRACK {
 		if err = p.value(); err != nil {
 			return err
 		}
 	}
 
-	return p.match(token.RBRACK)
+	return p.match(RBRACK)
 }
 
 func (p *parser) objectValueConst() error {
-	err := p.match(token.LBRACE)
+	err := p.match(LBRACE)
 	if err != nil {
 		return err
 	}
 
-	if p.lookAhead(1).Kind == token.RBRACE {
-		return p.match(token.RBRACE)
+	if p.lookAhead(1).Kind == RBRACE {
+		return p.match(RBRACE)
 	}
 
 	if err = p.objectFieldConst(); err != nil {
 		return err
 	}
 
-	for p.lookAhead(1).Kind != token.RBRACE {
+	for p.lookAhead(1).Kind != RBRACE {
 		if err = p.objectFieldConst(); err != nil {
 			return err
 		}
 	}
 
-	return p.match(token.RBRACE)
+	return p.match(RBRACE)
 }
 
 func (p *parser) objectFieldConst() error {
-	err := p.match(token.NAME)
+	err := p.match(NAME)
 	if err != nil {
 		return err
 	}
 
-	if err = p.match(token.COLON); err != nil {
+	if err = p.match(COLON); err != nil {
 		return err
 	}
 
@@ -360,7 +358,7 @@ func (p *parser) nonNullType() error {
 }
 
 func (p *parser) selectionSet() error {
-	err := p.match(token.LBRACE)
+	err := p.match(LBRACE)
 	if err != nil {
 		return err
 	}
@@ -368,21 +366,21 @@ func (p *parser) selectionSet() error {
 	if err = p.selection(); err != nil {
 		return err
 	}
-	for p.lookAhead(1).Kind != token.RBRACE {
+	for p.lookAhead(1).Kind != RBRACE {
 		if err = p.selection(); err != nil {
 			return err
 		}
 	}
 
-	if err = p.match(token.RBRACE); err != nil {
+	if err = p.match(RBRACE); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (p *parser) selection() error {
-	if p.lookAhead(1).Kind == token.SPREAD {
-		if p.lookAhead(2).Kind == token.NAME && p.lookAhead(2).Text != token.Stringify(token.ON) {
+	if p.lookAhead(1).Kind == SPREAD {
+		if p.lookAhead(2).Kind == NAME && p.lookAhead(2).Text != Stringify(ON) {
 			return p.fragmentSpread()
 		}
 		return p.inlineFragment()
@@ -393,29 +391,29 @@ func (p *parser) selection() error {
 
 func (p *parser) field() error {
 	var err error
-	if p.lookAhead(1).Kind == token.NAME && p.lookAhead(2).Kind == token.COLON {
+	if p.lookAhead(1).Kind == NAME && p.lookAhead(2).Kind == COLON {
 		if err = p.alias(); err != nil {
 			return err
 		}
 	}
 
-	if err = p.match(token.NAME); err != nil {
+	if err = p.match(NAME); err != nil {
 		return err
 	}
 
-	if p.lookAhead(1).Kind == token.LPAREN {
+	if p.lookAhead(1).Kind == LPAREN {
 		if err = p.arguments(); err != nil {
 			return err
 		}
 	}
 
-	if p.lookAhead(1).Kind == token.AT {
+	if p.lookAhead(1).Kind == AT {
 		if err = p.directives(); err != nil {
 			return err
 		}
 	}
 
-	if p.lookAhead(1).Kind == token.LBRACE {
+	if p.lookAhead(1).Kind == LBRACE {
 		if err = p.selectionSet(); err != nil {
 			return err
 		}
@@ -425,12 +423,12 @@ func (p *parser) field() error {
 }
 
 func (p *parser) fragmentSpread() error {
-	err := p.match(token.SPREAD)
+	err := p.match(SPREAD)
 	if err != nil {
 		return err
 	}
 
-	if p.lookAhead(1).Text == token.Stringify(token.ON) {
+	if p.lookAhead(1).Text == Stringify(ON) {
 		return ErrBadParse{
 			line:   p.input.Line(),
 			expect: "NAME but not *on*",
@@ -438,11 +436,11 @@ func (p *parser) fragmentSpread() error {
 		}
 	}
 
-	if err = p.match(token.NAME); err != nil {
+	if err = p.match(NAME); err != nil {
 		return err
 	}
 
-	if p.lookAhead(1).Kind == token.AT {
+	if p.lookAhead(1).Kind == AT {
 		return p.directives()
 	}
 
@@ -450,18 +448,18 @@ func (p *parser) fragmentSpread() error {
 }
 
 func (p *parser) inlineFragment() error {
-	err := p.match(token.SPREAD)
+	err := p.match(SPREAD)
 	if err != nil {
 		return err
 	}
 
-	if p.lookAhead(1).Text == token.Stringify(token.ON) {
+	if p.lookAhead(1).Text == Stringify(ON) {
 		if err = p.typeCondition(); err != nil {
 			return err
 		}
 	}
 
-	if p.lookAhead(1).Kind == token.AT {
+	if p.lookAhead(1).Kind == AT {
 		if err = p.directives(); err != nil {
 			return err
 		}
@@ -471,7 +469,7 @@ func (p *parser) inlineFragment() error {
 }
 
 func (p *parser) typeCondition() error {
-	err := p.match(token.ON)
+	err := p.match(ON)
 	if err != nil {
 		return err
 	}
@@ -479,12 +477,12 @@ func (p *parser) typeCondition() error {
 }
 
 func (p *parser) alias() error {
-	err := p.match(token.NAME)
+	err := p.match(NAME)
 	if err != nil {
 		return err
 	}
 
-	if err = p.match(token.COLON); err != nil {
+	if err = p.match(COLON); err != nil {
 		return err
 	}
 
@@ -492,7 +490,7 @@ func (p *parser) alias() error {
 }
 
 func (p *parser) arguments() error {
-	err := p.match(token.LPAREN)
+	err := p.match(LPAREN)
 	if err != nil {
 		return err
 	}
@@ -501,25 +499,25 @@ func (p *parser) arguments() error {
 		return err
 	}
 
-	for p.lookAhead(1).Kind != token.RPAREN {
+	for p.lookAhead(1).Kind != RPAREN {
 		if err = p.argument(); err != nil {
 			return err
 		}
 	}
 
-	if err = p.match(token.RPAREN); err != nil {
+	if err = p.match(RPAREN); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (p *parser) argument() error {
-	err := p.match(token.NAME)
+	err := p.match(NAME)
 	if err != nil {
 		return err
 	}
 
-	if err = p.match(token.COLON); err != nil {
+	if err = p.match(COLON); err != nil {
 		return err
 	}
 
@@ -528,13 +526,13 @@ func (p *parser) argument() error {
 
 func (p *parser) value() error {
 	switch p.lookAhead(1).Kind {
-	case token.INT:
-		return p.match(token.INT)
-	case token.FLOAT:
-		return p.match(token.FLOAT)
-	case token.STRING:
-		return p.match(token.STRING)
-	case token.NAME:
+	case INT:
+		return p.match(INT)
+	case FLOAT:
+		return p.match(FLOAT)
+	case STRING:
+		return p.match(STRING)
+	case NAME:
 		text := p.lookAhead(1).Text
 		if text == "true" || text == "false" {
 			return p.booleanValue()
@@ -542,21 +540,21 @@ func (p *parser) value() error {
 			return p.nullValue()
 		}
 		return p.enumValue()
-	case token.DOLLAR:
+	case DOLLAR:
 		return p.variable()
-	case token.LBRACK:
+	case LBRACK:
 		return p.listValue()
-	case token.LBRACE:
+	case LBRACE:
 		return p.objectValue()
 	default:
 		expect := fmt.Sprintf("%s/%s/%s/%s/%s/%s/%s",
-			token.Stringify(token.INT),
-			token.Stringify(token.FLOAT),
-			token.Stringify(token.STRING),
-			token.Stringify(token.NAME),
-			token.Stringify(token.DOLLAR),
-			token.Stringify(token.LBRACK),
-			token.Stringify(token.LBRACE))
+			Stringify(INT),
+			Stringify(FLOAT),
+			Stringify(STRING),
+			Stringify(NAME),
+			Stringify(DOLLAR),
+			Stringify(LBRACK),
+			Stringify(LBRACE))
 		return ErrBadParse{
 			line:   p.input.Line(),
 			expect: expect,
@@ -566,11 +564,11 @@ func (p *parser) value() error {
 }
 
 func (p *parser) variable() error {
-	err := p.match(token.DOLLAR)
+	err := p.match(DOLLAR)
 	if err != nil {
 		return err
 	}
-	if err = p.match(token.NAME); err != nil {
+	if err = p.match(NAME); err != nil {
 		return err
 	}
 	return nil
@@ -578,20 +576,20 @@ func (p *parser) variable() error {
 
 // FIXME: check whether its true/false/null
 func (p *parser) booleanValue() error {
-	return p.match(token.NAME)
+	return p.match(NAME)
 }
 
 func (p *parser) nullValue() error {
-	return p.match(token.NAME)
+	return p.match(NAME)
 }
 
 func (p *parser) enumValue() error {
-	err := p.match(token.NAME)
+	err := p.match(NAME)
 	if err != nil {
 		return err
 	}
 
-	if p.lookAhead(1).Kind == token.AT {
+	if p.lookAhead(1).Kind == AT {
 		if err = p.directives(); err != nil {
 			return err
 		}
@@ -600,58 +598,58 @@ func (p *parser) enumValue() error {
 }
 
 func (p *parser) listValue() error {
-	err := p.match(token.LBRACK)
+	err := p.match(LBRACK)
 	if err != nil {
 		return err
 	}
 
-	if p.lookAhead(1).Kind == token.RBRACK {
-		return p.match(token.RBRACK)
+	if p.lookAhead(1).Kind == RBRACK {
+		return p.match(RBRACK)
 	}
 
 	if err = p.value(); err != nil {
 		return err
 	}
 
-	for p.lookAhead(1).Kind != token.RBRACK {
+	for p.lookAhead(1).Kind != RBRACK {
 		if err = p.value(); err != nil {
 			return err
 		}
 	}
 
-	return p.match(token.RBRACK)
+	return p.match(RBRACK)
 }
 
 func (p *parser) objectValue() error {
-	err := p.match(token.LBRACE)
+	err := p.match(LBRACE)
 	if err != nil {
 		return err
 	}
 
-	if p.lookAhead(1).Kind == token.RBRACE {
-		return p.match(token.RBRACE)
+	if p.lookAhead(1).Kind == RBRACE {
+		return p.match(RBRACE)
 	}
 
 	if err = p.objectField(); err != nil {
 		return err
 	}
 
-	for p.lookAhead(1).Kind != token.RBRACE {
+	for p.lookAhead(1).Kind != RBRACE {
 		if err = p.objectField(); err != nil {
 			return err
 		}
 	}
 
-	return p.match(token.RBRACE)
+	return p.match(RBRACE)
 }
 
 func (p *parser) objectField() error {
-	err := p.match(token.NAME)
+	err := p.match(NAME)
 	if err != nil {
 		return err
 	}
 
-	if err = p.match(token.COLON); err != nil {
+	if err = p.match(COLON); err != nil {
 		return err
 	}
 
@@ -664,7 +662,7 @@ func (p *parser) directives() error {
 		return err
 	}
 
-	for p.lookAhead(1).Kind == token.AT {
+	for p.lookAhead(1).Kind == AT {
 		if err = p.directive(); err != nil {
 			return err
 		}
@@ -674,16 +672,16 @@ func (p *parser) directives() error {
 }
 
 func (p *parser) directive() error {
-	err := p.match(token.AT)
+	err := p.match(AT)
 	if err != nil {
 		return err
 	}
 
-	if err = p.match(token.NAME); err != nil {
+	if err = p.match(NAME); err != nil {
 		return err
 	}
 
-	if p.lookAhead(1).Kind == token.LPAREN {
+	if p.lookAhead(1).Kind == LPAREN {
 		return p.arguments()
 	}
 
@@ -691,12 +689,12 @@ func (p *parser) directive() error {
 }
 
 func (p *parser) fragmentDefinition() error {
-	err := p.match(token.FRAGMENT)
+	err := p.match(FRAGMENT)
 	if err != nil {
 		return err
 	}
 
-	if p.lookAhead(1).Text == token.Stringify(token.ON) {
+	if p.lookAhead(1).Text == Stringify(ON) {
 		return ErrBadParse{
 			line:   p.input.Line(),
 			expect: "NAME but not *on*",
@@ -704,7 +702,7 @@ func (p *parser) fragmentDefinition() error {
 		}
 	}
 
-	if err = p.match(token.NAME); err != nil {
+	if err = p.match(NAME); err != nil {
 		return err
 	}
 
@@ -712,7 +710,7 @@ func (p *parser) fragmentDefinition() error {
 		return err
 	}
 
-	if p.lookAhead(1).Kind == token.AT {
+	if p.lookAhead(1).Kind == AT {
 		if err = p.directives(); err != nil {
 			return err
 		}
@@ -721,14 +719,14 @@ func (p *parser) fragmentDefinition() error {
 	return p.selectionSet()
 }
 
-func (p *parser) lookAhead(i int) token.Token {
+func (p *parser) lookAhead(i int) Token {
 	return p.lookAheads[(p.curr+i-1)%len(p.lookAheads)]
 }
 
-func (p *parser) match(k token.Kind) error {
+func (p *parser) match(k Kind) error {
 	// fmt.Println("DEBUG tok", p.lookAhead(1))
-	if token.IsKeyword(k) {
-		if p.lookAhead(1).Kind == token.NAME && p.lookAhead(1).Text == token.Stringify(k) {
+	if IsKeyword(k) {
+		if p.lookAhead(1).Kind == NAME && p.lookAhead(1).Text == Stringify(k) {
 			p.consume()
 			return nil
 		}
@@ -741,7 +739,7 @@ func (p *parser) match(k token.Kind) error {
 
 	return ErrBadParse{
 		line:   p.input.Line(),
-		expect: token.Stringify(k),
+		expect: Stringify(k),
 		found:  p.lookAhead(1),
 	}
 }
@@ -752,22 +750,22 @@ func (p *parser) consume() {
 }
 
 func (p *parser) interfaceDefinition() error {
-	err := p.match(token.INTERFACE)
+	err := p.match(INTERFACE)
 	if err != nil {
 		return err
 	}
 
-	if err = p.match(token.NAME); err != nil {
+	if err = p.match(NAME); err != nil {
 		return err
 	}
 
-	if p.lookAhead(1).Kind == token.AT {
+	if p.lookAhead(1).Kind == AT {
 		if err = p.directives(); err != nil {
 			return err
 		}
 	}
 
-	if err = p.match(token.LBRACE); err != nil {
+	if err = p.match(LBRACE); err != nil {
 		return err
 	}
 
@@ -775,28 +773,28 @@ func (p *parser) interfaceDefinition() error {
 		return err
 	}
 
-	for p.lookAhead(1).Kind != token.RBRACE {
+	for p.lookAhead(1).Kind != RBRACE {
 		if err = p.fieldDefinition(); err != nil {
 			return err
 		}
 	}
 
-	return p.match(token.RBRACE)
+	return p.match(RBRACE)
 }
 
 func (p *parser) fieldDefinition() error {
-	err := p.match(token.NAME)
+	err := p.match(NAME)
 	if err != nil {
 		return err
 	}
 
-	if p.lookAhead(1).Kind == token.LPAREN {
+	if p.lookAhead(1).Kind == LPAREN {
 		if err = p.argumentsDefinition(); err != nil {
 			return err
 		}
 	}
 
-	if err = p.match(token.COLON); err != nil {
+	if err = p.match(COLON); err != nil {
 		return err
 	}
 
@@ -804,7 +802,7 @@ func (p *parser) fieldDefinition() error {
 		return err
 	}
 
-	if p.lookAhead(1).Kind == token.AT {
+	if p.lookAhead(1).Kind == AT {
 		if err = p.directives(); err != nil {
 			return err
 		}
@@ -814,7 +812,7 @@ func (p *parser) fieldDefinition() error {
 }
 
 func (p *parser) argumentsDefinition() error {
-	err := p.match(token.LPAREN)
+	err := p.match(LPAREN)
 	if err != nil {
 		return err
 	}
@@ -823,22 +821,22 @@ func (p *parser) argumentsDefinition() error {
 		return err
 	}
 
-	for p.lookAhead(1).Kind != token.RPAREN {
+	for p.lookAhead(1).Kind != RPAREN {
 		if err = p.inputValueDefinition(); err != nil {
 			return err
 		}
 	}
 
-	return p.match(token.RPAREN)
+	return p.match(RPAREN)
 }
 
 func (p *parser) inputValueDefinition() error {
-	err := p.match(token.NAME)
+	err := p.match(NAME)
 	if err != nil {
 		return err
 	}
 
-	if err = p.match(token.COLON); err != nil {
+	if err = p.match(COLON); err != nil {
 		return err
 	}
 
@@ -846,13 +844,13 @@ func (p *parser) inputValueDefinition() error {
 		return err
 	}
 
-	if p.lookAhead(1).Kind == token.EQL {
+	if p.lookAhead(1).Kind == EQL {
 		if err = p.defaultValue(); err != nil {
 			return err
 		}
 	}
 
-	if p.lookAhead(1).Kind == token.AT {
+	if p.lookAhead(1).Kind == AT {
 		if err = p.directives(); err != nil {
 			return err
 		}
@@ -862,16 +860,16 @@ func (p *parser) inputValueDefinition() error {
 }
 
 func (p *parser) scalarDefinition() error {
-	err := p.match(token.SCALAR)
+	err := p.match(SCALAR)
 	if err != nil {
 		return err
 	}
 
-	if err = p.match(token.NAME); err != nil {
+	if err = p.match(NAME); err != nil {
 		return err
 	}
 
-	if p.lookAhead(1).Kind == token.AT {
+	if p.lookAhead(1).Kind == AT {
 		if err = p.directives(); err != nil {
 			return err
 		}
@@ -880,22 +878,22 @@ func (p *parser) scalarDefinition() error {
 }
 
 func (p *parser) inputObjectDefinition() error {
-	err := p.match(token.INPUT)
+	err := p.match(INPUT)
 	if err != nil {
 		return err
 	}
 
-	if err = p.match(token.NAME); err != nil {
+	if err = p.match(NAME); err != nil {
 		return err
 	}
 
-	if p.lookAhead(1).Kind == token.AT {
+	if p.lookAhead(1).Kind == AT {
 		if err = p.directives(); err != nil {
 			return err
 		}
 	}
 
-	if err = p.match(token.LBRACE); err != nil {
+	if err = p.match(LBRACE); err != nil {
 		return err
 	}
 
@@ -903,38 +901,38 @@ func (p *parser) inputObjectDefinition() error {
 		return err
 	}
 
-	for p.lookAhead(1).Kind != token.RBRACE {
+	for p.lookAhead(1).Kind != RBRACE {
 		if err = p.inputValueDefinition(); err != nil {
 			return err
 		}
 	}
 
-	return p.match(token.RBRACE)
+	return p.match(RBRACE)
 }
 
 func (p *parser) typeDefinition() error {
-	err := p.match(token.TYPE)
+	err := p.match(TYPE)
 	if err != nil {
 		return err
 	}
 
-	if err = p.match(token.NAME); err != nil {
+	if err = p.match(NAME); err != nil {
 		return err
 	}
 
-	if p.lookAhead(1).Text == token.Stringify(token.IMPLEMENTS) {
+	if p.lookAhead(1).Text == Stringify(IMPLEMENTS) {
 		if err = p.implementsInterfaces(); err != nil {
 			return err
 		}
 	}
 
-	if p.lookAhead(1).Kind == token.AT {
+	if p.lookAhead(1).Kind == AT {
 		if err = p.directives(); err != nil {
 			return err
 		}
 	}
 
-	if err = p.match(token.LBRACE); err != nil {
+	if err = p.match(LBRACE); err != nil {
 		return err
 	}
 
@@ -942,26 +940,26 @@ func (p *parser) typeDefinition() error {
 	// 	return err
 	// }
 
-	for p.lookAhead(1).Kind != token.RBRACE {
+	for p.lookAhead(1).Kind != RBRACE {
 		if err = p.fieldDefinition(); err != nil {
 			return err
 		}
 	}
-	return p.match(token.RBRACE)
+	return p.match(RBRACE)
 }
 
 func (p *parser) implementsInterfaces() error {
-	err := p.match(token.IMPLEMENTS)
+	err := p.match(IMPLEMENTS)
 	if err != nil {
 		return err
 	}
 
-	if err = p.match(token.NAME); err != nil {
+	if err = p.match(NAME); err != nil {
 		return err
 	}
 
-	for p.lookAhead(1).Kind == token.NAME {
-		if err = p.match(token.NAME); err != nil {
+	for p.lookAhead(1).Kind == NAME {
+		if err = p.match(NAME); err != nil {
 			return err
 		}
 	}
@@ -970,7 +968,7 @@ func (p *parser) implementsInterfaces() error {
 }
 
 func (p *parser) extendDefinition() error {
-	err := p.match(token.EXTEND)
+	err := p.match(EXTEND)
 	if err != nil {
 		return err
 	}
@@ -979,26 +977,26 @@ func (p *parser) extendDefinition() error {
 }
 
 func (p *parser) directiveDefinition() error {
-	err := p.match(token.DIRECTIVE)
+	err := p.match(DIRECTIVE)
 	if err != nil {
 		return err
 	}
 
-	if err = p.match(token.AT); err != nil {
+	if err = p.match(AT); err != nil {
 		return err
 	}
 
-	if err = p.match(token.NAME); err != nil {
+	if err = p.match(NAME); err != nil {
 		return err
 	}
 
-	if p.lookAhead(1).Kind == token.LPAREN {
+	if p.lookAhead(1).Kind == LPAREN {
 		if err = p.argumentsDefinition(); err != nil {
 			return err
 		}
 	}
 
-	if err = p.match(token.ON); err != nil {
+	if err = p.match(ON); err != nil {
 		return err
 	}
 
@@ -1011,8 +1009,8 @@ func (p *parser) directiveLocations() error {
 		return err
 	}
 
-	for p.lookAhead(1).Kind == token.PIPE {
-		if err = p.match(token.PIPE); err != nil {
+	for p.lookAhead(1).Kind == PIPE {
+		if err = p.match(PIPE); err != nil {
 			return err
 		}
 		if err = p.directiveLocation(); err != nil {
@@ -1024,22 +1022,22 @@ func (p *parser) directiveLocations() error {
 }
 
 func (p *parser) directiveLocation() error {
-	return p.match(token.NAME)
+	return p.match(NAME)
 }
 
 func (p *parser) schemaDefinition() error {
-	err := p.match(token.SCHEMA)
+	err := p.match(SCHEMA)
 	if err != nil {
 		return err
 	}
 
-	if p.lookAhead(1).Kind == token.AT {
+	if p.lookAhead(1).Kind == AT {
 		if err = p.directives(); err != nil {
 			return err
 		}
 	}
 
-	if err = p.match(token.LBRACE); err != nil {
+	if err = p.match(LBRACE); err != nil {
 		return err
 	}
 
@@ -1047,56 +1045,56 @@ func (p *parser) schemaDefinition() error {
 		return err
 	}
 
-	for p.lookAhead(1).Kind != token.RBRACE {
+	for p.lookAhead(1).Kind != RBRACE {
 		if err = p.operationTypeDefinition(); err != nil {
 			return err
 		}
 	}
 
-	return p.match(token.RBRACE)
+	return p.match(RBRACE)
 }
 
 func (p *parser) operationTypeDefinition() error {
 	var err error
-	if err = p.match(token.QUERY); err != nil {
-		if err = p.match(token.MUTATION); err != nil {
-			if err = p.match(token.SUBSCRIPTION); err != nil {
+	if err = p.match(QUERY); err != nil {
+		if err = p.match(MUTATION); err != nil {
+			if err = p.match(SUBSCRIPTION); err != nil {
 				return ErrBadParse{
 					line: p.input.Line(),
 					expect: fmt.Sprintf("%s or %s or %s",
-						token.Stringify(token.QUERY),
-						token.Stringify(token.MUTATION),
-						token.Stringify(token.SUBSCRIPTION)),
+						Stringify(QUERY),
+						Stringify(MUTATION),
+						Stringify(SUBSCRIPTION)),
 					found: p.lookAhead(1),
 				}
 			}
 		}
 	}
 
-	if err := p.match(token.COLON); err != nil {
+	if err := p.match(COLON); err != nil {
 		return err
 	}
 
-	return p.match(token.NAME)
+	return p.match(NAME)
 }
 
 func (p *parser) enumDefinition() error {
-	err := p.match(token.ENUM)
+	err := p.match(ENUM)
 	if err != nil {
 		return err
 	}
 
-	if err = p.match(token.NAME); err != nil {
+	if err = p.match(NAME); err != nil {
 		return err
 	}
 
-	if p.lookAhead(1).Kind == token.AT {
+	if p.lookAhead(1).Kind == AT {
 		if err = p.directives(); err != nil {
 			return err
 		}
 	}
 
-	if err = p.match(token.LBRACE); err != nil {
+	if err = p.match(LBRACE); err != nil {
 		return err
 	}
 
@@ -1104,32 +1102,32 @@ func (p *parser) enumDefinition() error {
 		return err
 	}
 
-	for p.lookAhead(1).Kind != token.RBRACE {
+	for p.lookAhead(1).Kind != RBRACE {
 		if err = p.enumValue(); err != nil {
 			return err
 		}
 	}
 
-	return p.match(token.RBRACE)
+	return p.match(RBRACE)
 }
 
 func (p *parser) unionDefinition() error {
-	err := p.match(token.UNION)
+	err := p.match(UNION)
 	if err != nil {
 		return err
 	}
 
-	if err = p.match(token.NAME); err != nil {
+	if err = p.match(NAME); err != nil {
 		return err
 	}
 
-	if p.lookAhead(1).Kind == token.AT {
+	if p.lookAhead(1).Kind == AT {
 		if err = p.directives(); err != nil {
 			return err
 		}
 	}
 
-	if err = p.match(token.EQL); err != nil {
+	if err = p.match(EQL); err != nil {
 		return err
 	}
 
@@ -1137,17 +1135,17 @@ func (p *parser) unionDefinition() error {
 }
 
 func (p *parser) unionMembers() error {
-	err := p.match(token.NAME)
+	err := p.match(NAME)
 	if err != nil {
 		return err
 	}
 
-	for p.lookAhead(1).Kind == token.PIPE {
-		if err = p.match(token.PIPE); err != nil {
+	for p.lookAhead(1).Kind == PIPE {
+		if err = p.match(PIPE); err != nil {
 			return err
 		}
 
-		if err = p.match(token.NAME); err != nil {
+		if err = p.match(NAME); err != nil {
 			return err
 		}
 	}

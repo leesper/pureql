@@ -1,18 +1,14 @@
 package parser
 
-import (
-	"testing"
-
-	"github.com/leesper/pureql/gql/token"
-)
+import "testing"
 
 func TestComment(t *testing.T) {
 	comments := `#this is comment
 	# this is comment with space
 	#				this is comment with tabs			`
 	lexer := newLexer(comments)
-	if tok := lexer.Read(); tok != token.TokenEOF {
-		t.Errorf("returned: %v, expected: %v", tok, token.TokenEOF)
+	if tok := lexer.Read(); tok != TokenEOF {
+		t.Errorf("returned: %v, expected: %v", tok, TokenEOF)
 	}
 	if lexer.Line() != 3 {
 		t.Errorf("returned line: %d, expected: %d", lexer.Line(), 3)
@@ -22,79 +18,79 @@ func TestComment(t *testing.T) {
 func TestLexesPunctuators(t *testing.T) {
 	lexer := newLexer("! $ ( ) ... : = @ [ ] { | }")
 	tok := lexer.Read()
-	expected := token.Token{Kind: token.BANG, Text: "!"}
+	expected := Token{Kind: BANG, Text: "!"}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
 
 	tok = lexer.Read()
-	expected = token.Token{Kind: token.DOLLAR, Text: "$"}
+	expected = Token{Kind: DOLLAR, Text: "$"}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
 
 	tok = lexer.Read()
-	expected = token.Token{Kind: token.LPAREN, Text: "("}
+	expected = Token{Kind: LPAREN, Text: "("}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
 
 	tok = lexer.Read()
-	expected = token.Token{Kind: token.RPAREN, Text: ")"}
+	expected = Token{Kind: RPAREN, Text: ")"}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
 
 	tok = lexer.Read()
-	expected = token.Token{Kind: token.SPREAD, Text: "..."}
+	expected = Token{Kind: SPREAD, Text: "..."}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
 
 	tok = lexer.Read()
-	expected = token.Token{Kind: token.COLON, Text: ":"}
+	expected = Token{Kind: COLON, Text: ":"}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
 
 	tok = lexer.Read()
-	expected = token.Token{Kind: token.EQL, Text: "="}
+	expected = Token{Kind: EQL, Text: "="}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
 
 	tok = lexer.Read()
-	expected = token.Token{Kind: token.AT, Text: "@"}
+	expected = Token{Kind: AT, Text: "@"}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
 
 	tok = lexer.Read()
-	expected = token.Token{Kind: token.LBRACK, Text: "["}
+	expected = Token{Kind: LBRACK, Text: "["}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
 
 	tok = lexer.Read()
-	expected = token.Token{Kind: token.RBRACK, Text: "]"}
+	expected = Token{Kind: RBRACK, Text: "]"}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
 
 	tok = lexer.Read()
-	expected = token.Token{Kind: token.LBRACE, Text: "{"}
+	expected = Token{Kind: LBRACE, Text: "{"}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
 
 	tok = lexer.Read()
-	expected = token.Token{Kind: token.PIPE, Text: "|"}
+	expected = Token{Kind: PIPE, Text: "|"}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
 
 	tok = lexer.Read()
-	expected = token.Token{Kind: token.RBRACE, Text: "}"}
+	expected = Token{Kind: RBRACE, Text: "}"}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
@@ -103,35 +99,35 @@ func TestLexesPunctuators(t *testing.T) {
 func TestInvalidPunctuators(t *testing.T) {
 	lexer := newLexer("..")
 	tok := lexer.Read()
-	expected := token.Token{Kind: token.ILLEGAL, Text: ".." + string(rune(token.EOF))}
+	expected := Token{Kind: ILLEGAL, Text: ".." + string(rune(EOF))}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
 
 	lexer = newLexer("?")
 	tok = lexer.Read()
-	expected = token.Token{Kind: token.ILLEGAL, Text: "?"}
+	expected = Token{Kind: ILLEGAL, Text: "?"}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
 
 	lexer = newLexer("\u203B")
 	tok = lexer.Read()
-	expected = token.Token{Kind: token.ILLEGAL, Text: "\u203B"}
+	expected = Token{Kind: ILLEGAL, Text: "\u203B"}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
 
 	lexer = newLexer("\u203b")
 	tok = lexer.Read()
-	expected = token.Token{Kind: token.ILLEGAL, Text: "\u203b"}
+	expected = Token{Kind: ILLEGAL, Text: "\u203b"}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
 
 	lexer = newLexer("ф")
 	tok = lexer.Read()
-	expected = token.Token{Kind: token.ILLEGAL, Text: "ф"}
+	expected = Token{Kind: ILLEGAL, Text: "ф"}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
@@ -140,13 +136,13 @@ func TestInvalidPunctuators(t *testing.T) {
 func TestInvalidFloat(t *testing.T) {
 	lexer := newLexer(".234")
 	tok := lexer.Read()
-	expected := token.Token{Kind: token.ILLEGAL, Text: ".2"}
+	expected := Token{Kind: ILLEGAL, Text: ".2"}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
 	lexer = newLexer("..2")
 	tok = lexer.Read()
-	expected = token.Token{Kind: token.ILLEGAL, Text: "..2"}
+	expected = Token{Kind: ILLEGAL, Text: "..2"}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
@@ -155,7 +151,7 @@ func TestInvalidFloat(t *testing.T) {
 func TestUncommonControlChar(t *testing.T) {
 	lexer := newLexer("\u0007")
 	tok := lexer.Read()
-	expected := token.Token{Kind: token.ILLEGAL, Text: "\u0007"}
+	expected := Token{Kind: ILLEGAL, Text: "\u0007"}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
@@ -164,7 +160,7 @@ func TestUncommonControlChar(t *testing.T) {
 func TestBOMHeader(t *testing.T) {
 	lexer := newLexer("\ufeff foo")
 	tok := lexer.Read()
-	expected := token.Token{Kind: token.NAME, Text: "foo"}
+	expected := Token{Kind: NAME, Text: "foo"}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
@@ -175,7 +171,7 @@ func TestSkipWhiteSpace(t *testing.T) {
 		foo
 `)
 	tok := lexer.Read()
-	expected := token.Token{Kind: token.NAME, Text: "foo"}
+	expected := Token{Kind: NAME, Text: "foo"}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
@@ -187,7 +183,7 @@ func TestSkipComments(t *testing.T) {
 	foo#comment
 `)
 	tok := lexer.Read()
-	expected := token.Token{Kind: token.NAME, Text: "foo"}
+	expected := Token{Kind: NAME, Text: "foo"}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
@@ -196,7 +192,7 @@ func TestSkipComments(t *testing.T) {
 func TestSkipCommas(t *testing.T) {
 	lexer := newLexer(",,,query,,,")
 	tok := lexer.Read()
-	expected := token.Token{Kind: token.NAME, Text: "query"}
+	expected := Token{Kind: NAME, Text: "query"}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
@@ -205,7 +201,7 @@ func TestSkipCommas(t *testing.T) {
 func TestLexesStrings(t *testing.T) {
 	lexer := newLexer(`"simple"`)
 	tok := lexer.Read()
-	expected := token.Token{Kind: token.STRING, Text: "simple"}
+	expected := Token{Kind: STRING, Text: "simple"}
 	if tok != expected {
 		t.Errorf("returnd: %v, expected: %v", tok, expected)
 	}
@@ -215,56 +211,56 @@ func TestLexesStrings(t *testing.T) {
 
 	lexer = newLexer(`" white space "`)
 	tok = lexer.Read()
-	expected = token.Token{Kind: token.STRING, Text: " white space "}
+	expected = Token{Kind: STRING, Text: " white space "}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
 
 	lexer = newLexer("\"quote \\\"\"")
 	tok = lexer.Read()
-	expected = token.Token{Kind: token.STRING, Text: `quote "`}
+	expected = Token{Kind: STRING, Text: `quote "`}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
 
 	lexer = newLexer("\"escaped \\n\\r\\b\\t\\f\"")
 	tok = lexer.Read()
-	expected = token.Token{Kind: token.STRING, Text: "escaped \n\r\b\t\f"}
+	expected = Token{Kind: STRING, Text: "escaped \n\r\b\t\f"}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
 
 	lexer = newLexer("\"slashes \\\\ \\/\"")
 	tok = lexer.Read()
-	expected = token.Token{Kind: token.STRING, Text: "slashes \\ /"}
+	expected = Token{Kind: STRING, Text: "slashes \\ /"}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
 
 	lexer = newLexer("\"unicode \\u1234\\u5678\\u90AB\\uCDEF\"")
 	tok = lexer.Read()
-	expected = token.Token{Kind: token.STRING, Text: "unicode \u1234\u5678\u90AB\uCDEF"}
+	expected = Token{Kind: STRING, Text: "unicode \u1234\u5678\u90AB\uCDEF"}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
 
 	lexer = newLexer("\"unicode фы世界\"")
 	tok = lexer.Read()
-	expected = token.Token{Kind: token.STRING, Text: "unicode фы世界"}
+	expected = Token{Kind: STRING, Text: "unicode фы世界"}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
 
 	lexer = newLexer("\"фы世界\"")
 	tok = lexer.Read()
-	expected = token.Token{Kind: token.STRING, Text: "фы世界"}
+	expected = Token{Kind: STRING, Text: "фы世界"}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
 
 	lexer = newLexer("\"Has a фы世界 multi-byte character.\"")
 	tok = lexer.Read()
-	expected = token.Token{Kind: token.STRING, Text: "Has a фы世界 multi-byte character."}
+	expected = Token{Kind: STRING, Text: "Has a фы世界 multi-byte character."}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
@@ -273,105 +269,105 @@ func TestLexesStrings(t *testing.T) {
 func TestInvalidStrings(t *testing.T) {
 	lexer := newLexer("\"")
 	tok := lexer.Read()
-	expected := token.Token{Kind: token.ILLEGAL, Text: "\"" + string(rune(token.EOF))}
+	expected := Token{Kind: ILLEGAL, Text: "\"" + string(rune(EOF))}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
 
 	lexer = newLexer("\"no end quote")
 	tok = lexer.Read()
-	expected = token.Token{Kind: token.ILLEGAL, Text: "\"no end quote" + string(rune(token.EOF))}
+	expected = Token{Kind: ILLEGAL, Text: "\"no end quote" + string(rune(EOF))}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
 
 	lexer = newLexer("\"contains unescaped \u0007 control char\"")
 	tok = lexer.Read()
-	expected = token.Token{Kind: token.ILLEGAL, Text: "\"contains unescaped \u0007"}
+	expected = Token{Kind: ILLEGAL, Text: "\"contains unescaped \u0007"}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
 
 	lexer = newLexer("\"null-byte is not \u0000 end of file\"")
 	tok = lexer.Read()
-	expected = token.Token{Kind: token.ILLEGAL, Text: "\"null-byte is not \u0000"}
+	expected = Token{Kind: ILLEGAL, Text: "\"null-byte is not \u0000"}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
 
 	lexer = newLexer("\"multi\nline\"")
 	tok = lexer.Read()
-	expected = token.Token{Kind: token.ILLEGAL, Text: "\"multi\n"}
+	expected = Token{Kind: ILLEGAL, Text: "\"multi\n"}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
 
 	lexer = newLexer("\"multi\rline\"")
 	tok = lexer.Read()
-	expected = token.Token{Kind: token.ILLEGAL, Text: "\"multi\r"}
+	expected = Token{Kind: ILLEGAL, Text: "\"multi\r"}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
 
 	lexer = newLexer("\"bad \\z esc\"")
 	tok = lexer.Read()
-	expected = token.Token{Kind: token.ILLEGAL, Text: "\"bad z"}
+	expected = Token{Kind: ILLEGAL, Text: "\"bad z"}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
 
 	lexer = newLexer("\"bad \\x esc\"")
 	tok = lexer.Read()
-	expected = token.Token{Kind: token.ILLEGAL, Text: "\"bad x"}
+	expected = Token{Kind: ILLEGAL, Text: "\"bad x"}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
 
 	lexer = newLexer("\"bad \\u1 esc\"")
 	tok = lexer.Read()
-	expected = token.Token{Kind: token.ILLEGAL, Text: "\"bad '\\u1 es'"}
+	expected = Token{Kind: ILLEGAL, Text: "\"bad '\\u1 es'"}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
 
 	lexer = newLexer("\"bad \\u0XX1 esc\"")
 	tok = lexer.Read()
-	expected = token.Token{Kind: token.ILLEGAL, Text: "\"bad '\\u0XX1'"}
+	expected = Token{Kind: ILLEGAL, Text: "\"bad '\\u0XX1'"}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
 
 	lexer = newLexer("\"bad \\uXXXX esc\"")
 	tok = lexer.Read()
-	expected = token.Token{Kind: token.ILLEGAL, Text: "\"bad '\\uXXXX'"}
+	expected = Token{Kind: ILLEGAL, Text: "\"bad '\\uXXXX'"}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
 
 	lexer = newLexer("\"bad \\uFXXX esc\"")
 	tok = lexer.Read()
-	expected = token.Token{Kind: token.ILLEGAL, Text: "\"bad '\\uFXXX'"}
+	expected = Token{Kind: ILLEGAL, Text: "\"bad '\\uFXXX'"}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
 
 	lexer = newLexer("\"bad \\uXXXF esc\"")
 	tok = lexer.Read()
-	expected = token.Token{Kind: token.ILLEGAL, Text: "\"bad '\\uXXXF'"}
+	expected = Token{Kind: ILLEGAL, Text: "\"bad '\\uXXXF'"}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
 
 	lexer = newLexer("\"bad \\u123")
 	tok = lexer.Read()
-	expected = token.Token{Kind: token.ILLEGAL, Text: "\"bad '\\u123" + string(rune(token.EOF)) + "'"}
+	expected = Token{Kind: ILLEGAL, Text: "\"bad '\\u123" + string(rune(EOF)) + "'"}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
 
 	lexer = newLexer("\"bфы世ыы𠱸d \\uXXXF esc\"")
 	tok = lexer.Read()
-	expected = token.Token{Kind: token.ILLEGAL, Text: "\"bфы世ыы𠱸d '\\uXXXF'"}
+	expected = Token{Kind: ILLEGAL, Text: "\"bфы世ыы𠱸d '\\uXXXF'"}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
@@ -380,112 +376,112 @@ func TestInvalidStrings(t *testing.T) {
 func TestLexesNumbers(t *testing.T) {
 	lexer := newLexer("4")
 	tok := lexer.Read()
-	expected := token.Token{Kind: token.INT, Text: "4"}
+	expected := Token{Kind: INT, Text: "4"}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
 
 	lexer = newLexer("4.123")
 	tok = lexer.Read()
-	expected = token.Token{Kind: token.FLOAT, Text: "4.123"}
+	expected = Token{Kind: FLOAT, Text: "4.123"}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
 
 	lexer = newLexer("-4")
 	tok = lexer.Read()
-	expected = token.Token{Kind: token.INT, Text: "-4"}
+	expected = Token{Kind: INT, Text: "-4"}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
 
 	lexer = newLexer("9")
 	tok = lexer.Read()
-	expected = token.Token{Kind: token.INT, Text: "9"}
+	expected = Token{Kind: INT, Text: "9"}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
 
 	lexer = newLexer("0")
 	tok = lexer.Read()
-	expected = token.Token{Kind: token.INT, Text: "0"}
+	expected = Token{Kind: INT, Text: "0"}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
 
 	lexer = newLexer("-4.123")
 	tok = lexer.Read()
-	expected = token.Token{Kind: token.FLOAT, Text: "-4.123"}
+	expected = Token{Kind: FLOAT, Text: "-4.123"}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
 
 	lexer = newLexer("0.123")
 	tok = lexer.Read()
-	expected = token.Token{Kind: token.FLOAT, Text: "0.123"}
+	expected = Token{Kind: FLOAT, Text: "0.123"}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
 
 	lexer = newLexer("123e4")
 	tok = lexer.Read()
-	expected = token.Token{Kind: token.FLOAT, Text: "123e4"}
+	expected = Token{Kind: FLOAT, Text: "123e4"}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
 
 	lexer = newLexer("123E4")
 	tok = lexer.Read()
-	expected = token.Token{Kind: token.FLOAT, Text: "123E4"}
+	expected = Token{Kind: FLOAT, Text: "123E4"}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
 
 	lexer = newLexer("123e-4")
 	tok = lexer.Read()
-	expected = token.Token{Kind: token.FLOAT, Text: "123e-4"}
+	expected = Token{Kind: FLOAT, Text: "123e-4"}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
 
 	lexer = newLexer("123e+4")
 	tok = lexer.Read()
-	expected = token.Token{Kind: token.FLOAT, Text: "123e+4"}
+	expected = Token{Kind: FLOAT, Text: "123e+4"}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
 
 	lexer = newLexer("-1.123e4")
 	tok = lexer.Read()
-	expected = token.Token{Kind: token.FLOAT, Text: "-1.123e4"}
+	expected = Token{Kind: FLOAT, Text: "-1.123e4"}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
 
 	lexer = newLexer("-1.123E4")
 	tok = lexer.Read()
-	expected = token.Token{Kind: token.FLOAT, Text: "-1.123E4"}
+	expected = Token{Kind: FLOAT, Text: "-1.123E4"}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
 
 	lexer = newLexer("-1.123e-4")
 	tok = lexer.Read()
-	expected = token.Token{Kind: token.FLOAT, Text: "-1.123e-4"}
+	expected = Token{Kind: FLOAT, Text: "-1.123e-4"}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
 
 	lexer = newLexer("-1.123e+4")
 	tok = lexer.Read()
-	expected = token.Token{Kind: token.FLOAT, Text: "-1.123e+4"}
+	expected = Token{Kind: FLOAT, Text: "-1.123e+4"}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
 
 	lexer = newLexer("-1.123e4567")
 	tok = lexer.Read()
-	expected = token.Token{Kind: token.FLOAT, Text: "-1.123e4567"}
+	expected = Token{Kind: FLOAT, Text: "-1.123e4567"}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
@@ -494,63 +490,63 @@ func TestLexesNumbers(t *testing.T) {
 func TestInvalidNumbers(t *testing.T) {
 	lexer := newLexer("00")
 	tok := lexer.Read()
-	expected := token.Token{Kind: token.ILLEGAL, Text: "00"}
+	expected := Token{Kind: ILLEGAL, Text: "00"}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
 
 	lexer = newLexer("09")
 	tok = lexer.Read()
-	expected = token.Token{Kind: token.ILLEGAL, Text: "09"}
+	expected = Token{Kind: ILLEGAL, Text: "09"}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
 
 	lexer = newLexer("+1")
 	tok = lexer.Read()
-	expected = token.Token{Kind: token.ILLEGAL, Text: "+"}
+	expected = Token{Kind: ILLEGAL, Text: "+"}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
 
 	lexer = newLexer("1.")
 	tok = lexer.Read()
-	expected = token.Token{Kind: token.ILLEGAL, Text: "1." + string(rune(token.EOF))}
+	expected = Token{Kind: ILLEGAL, Text: "1." + string(rune(EOF))}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
 
 	lexer = newLexer(".123")
 	tok = lexer.Read()
-	expected = token.Token{Kind: token.ILLEGAL, Text: ".1"}
+	expected = Token{Kind: ILLEGAL, Text: ".1"}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
 
 	lexer = newLexer("1.A")
 	tok = lexer.Read()
-	expected = token.Token{Kind: token.ILLEGAL, Text: "1.A"}
+	expected = Token{Kind: ILLEGAL, Text: "1.A"}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
 
 	lexer = newLexer("-A")
 	tok = lexer.Read()
-	expected = token.Token{Kind: token.ILLEGAL, Text: "-A"}
+	expected = Token{Kind: ILLEGAL, Text: "-A"}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
 
 	lexer = newLexer("1.0e")
 	tok = lexer.Read()
-	expected = token.Token{Kind: token.ILLEGAL, Text: "1.0e" + string(rune(token.EOF))}
+	expected = Token{Kind: ILLEGAL, Text: "1.0e" + string(rune(EOF))}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
 
 	lexer = newLexer("1.0eA")
 	tok = lexer.Read()
-	expected = token.Token{Kind: token.ILLEGAL, Text: "1.0eA"}
+	expected = Token{Kind: ILLEGAL, Text: "1.0eA"}
 	if tok != expected {
 		t.Errorf("returned: %v, expected: %v", tok, expected)
 	}
