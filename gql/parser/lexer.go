@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"strconv"
-	"strings"
 )
 
 type lexer struct {
@@ -15,7 +14,6 @@ type lexer struct {
 }
 
 func newLexer(source []byte) *lexer {
-	source = []byte(strings.TrimRight(string(source), "\n\t\r "))
 	reader := bytes.NewReader(source)
 	l := &lexer{
 		input: reader,

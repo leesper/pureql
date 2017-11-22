@@ -3,6 +3,7 @@ package parser
 import (
 	"errors"
 	"fmt"
+	"strings"
 )
 
 // ErrBadParse for invalid parse.
@@ -18,11 +19,13 @@ func (e ErrBadParse) Error() string {
 
 // ParseDocument returns ast.Document.
 func ParseDocument(document []byte) error {
+	document = []byte(strings.TrimRight(string(document), "\n\t\r "))
 	return newParser(newLexer(document), 2).parseDocument()
 }
 
 // ParseSchema returns ast.Schema.
 func ParseSchema(schema []byte) error {
+	schema = []byte(strings.TrimRight(string(schema), "\n\t\r "))
 	return newParser(newLexer(schema), 2).parseSchema()
 }
 
