@@ -570,7 +570,6 @@ func (p *parser) variable() error {
 	return nil
 }
 
-// FIXME: check whether its true/false/null
 func (p *parser) booleanValue() error {
 	return p.match(NAME)
 }
@@ -721,7 +720,7 @@ func (p *parser) tokenOffset(i int) int {
 
 func (p *parser) match(k Kind) error {
 	// fmt.Println("DEBUG tok", p.lookAhead(1))
-	if IsKeyword(k) {
+	if IsReserved(k) {
 		if p.lookAhead(1).Kind == NAME && p.lookAhead(1).Text == Stringify(k) {
 			p.consume()
 			return nil

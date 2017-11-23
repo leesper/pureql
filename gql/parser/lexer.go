@@ -88,92 +88,64 @@ func (l *lexer) line() int {
 
 // consumes and returns a token and its offset
 func (l *lexer) read() (Token, int) {
-	var offs int
+	tok := TokenEOF
+	offs := l.offset()
 	for l.lookAhead != rune(EOF) {
 		switch l.lookAhead {
 		case '#':
 			l.readComment()
 		case '\uFEFF', '\u0009', '\u0020', '\u000A', '\u000D', ',': // ignored
-			if l.lookAhead == '\u000A' { // new line
-				l.file.AddLine(l.offset())
-			}
-			l.consume()
+			l.readIgnored()
 			continue
-		case '!':
+		case '!', '$', '(', ')', ':', '=', '@', '[', ']', '{', '|', '}':
 			offs = l.offset()
-			l.consume()
-			return Token{Kind: BANG, Text: "!"}, offs
-		case '$':
-			offs = l.offset()
-			l.consume()
-			return Token{Kind: DOLLAR, Text: "$"}, offs
-		case '(':
-			offs = l.offset()
-			l.consume()
-			return Token{Kind: LPAREN, Text: "("}, offs
-		case ')':
-			offs = l.offset()
-			l.consume()
-			return Token{Kind: RPAREN, Text: ")"}, offs
-		case ':':
-			offs = l.offset()
-			l.consume()
-			return Token{Kind: COLON, Text: ":"}, offs
-		case '=':
-			offs = l.offset()
-			l.consume()
-			return Token{Kind: EQL, Text: "="}, offs
-		case '@':
-			offs = l.offset()
-			l.consume()
-			return Token{Kind: AT, Text: "@"}, offs
-		case '[':
-			offs = l.offset()
-			l.consume()
-			return Token{Kind: LBRACK, Text: "["}, offs
-		case ']':
-			offs = l.offset()
-			l.consume()
-			return Token{Kind: RBRACK, Text: "]"}, offs
-		case '{':
-			offs = l.offset()
-			l.consume()
-			return Token{Kind: LBRACE, Text: "{"}, offs
-		case '|':
-			offs = l.offset()
-			l.consume()
-			return Token{Kind: PIPE, Text: "|"}, offs
-		case '}':
-			offs = l.offset()
-			l.consume()
-			return Token{Kind: RBRACE, Text: "}"}, offs
+			tok = l.readPunct()
+			return tok, offs
 		case '.': // ...
 			offs = l.offset()
-			tok := l.readSpread()
+			tok = l.readSpread()
 			return tok, offs
 		case '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '-':
 			offs = l.offset()
-			tok := l.readNumber()
+			tok = l.readNumber()
 			return tok, offs
 		case 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o',
 			'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', 'A', 'B', 'C', 'D', 'E',
 			'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U',
 			'V', 'W', 'X', 'Y', 'Z', '_':
 			offs = l.offset()
-			tok := l.readName()
+			tok = l.readName()
 			return tok, offs
 		case '"':
 			offs = l.offset()
-			tok := l.readString()
+			tok = l.readString()
 			return tok, offs
 		default:
 			offs = l.offset()
-			tok := Token{Kind: ILLEGAL, Text: string(l.lookAhead)}
-			l.consume()
+			tok = l.readIllegal()
 			return tok, offs
 		}
 	}
-	return TokenEOF, l.offset()
+	return tok, offs
+}
+
+func (l *lexer) readIllegal() Token {
+	tok := Token{Kind: ILLEGAL, Text: string(l.lookAhead)}
+	l.consume()
+	return tok
+}
+
+func (l *lexer) readIgnored() {
+	if l.lookAhead == '\u000A' { // new line
+		l.file.AddLine(l.offset())
+	}
+	l.consume()
+}
+
+func (l *lexer) readPunct() Token {
+	tok := Token{Kind: puncts[l.lookAhead], Text: string(l.lookAhead)}
+	l.consume()
+	return tok
 }
 
 func (l *lexer) readSpread() Token {

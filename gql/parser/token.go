@@ -48,8 +48,8 @@ const (
 	STRING // "abc"
 	literalEnd
 
-	// Reserved keywords
-	keywordBeg
+	// reserved words
+	reservedBeg
 	SCHEMA
 	QUERY
 	MUTATION
@@ -65,7 +65,7 @@ const (
 	INPUT
 	ENUM
 	DIRECTIVE
-	keywordEnd
+	reservedEnd
 )
 
 var tokens = map[Kind]string{
@@ -105,14 +105,29 @@ var tokens = map[Kind]string{
 	DIRECTIVE:    "directive",
 }
 
+var puncts = map[rune]Kind{
+	'!': BANG,
+	'$': DOLLAR,
+	'(': LPAREN,
+	')': RPAREN,
+	':': COLON,
+	'=': EQL,
+	'@': AT,
+	'[': LBRACK,
+	']': RBRACK,
+	'{': LBRACE,
+	'|': PIPE,
+	'}': RBRACE,
+}
+
 // String returns the string corresponding to the token tok.
 func (tok Token) String() string {
 	return fmt.Sprintf("<'%s', %s>", tok.Text, tokens[tok.Kind])
 }
 
-// IsKeyword returns true if a token Kind is in keyword range.
-func IsKeyword(k Kind) bool {
-	return keywordBeg < k && k < keywordEnd
+// IsReserved returns true if a token Kind is reserved in GraphQL.
+func IsReserved(k Kind) bool {
+	return reservedBeg < k && k < reservedEnd
 }
 
 // Stringify returns the string representation of Kind.
