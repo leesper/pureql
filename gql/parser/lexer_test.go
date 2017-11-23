@@ -201,7 +201,7 @@ func TestSkipCommas(t *testing.T) {
 func TestLexesStrings(t *testing.T) {
 	lexer := newLexer([]byte(`"simple"`), nil)
 	tok, _ := lexer.read()
-	expected := Token{Kind: STRING, Text: "simple"}
+	expected := Token{Kind: STRING, Text: `simple`}
 	if tok != expected {
 		t.Errorf("returnd: %v, expected: %v", tok, expected)
 	}
