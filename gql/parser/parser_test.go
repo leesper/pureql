@@ -14,17 +14,17 @@ func TestInvalidLexerOrK(t *testing.T) {
 		t.Error("should not return nil")
 	}
 
-	if err := newParser(nil, "").parseDocument(); err == nil {
+	if _, err := newParser(nil, "").parseDocument(); err == nil {
 		t.Error("should return error")
 	}
 
-	if err := newParser(nil, "").parseSchema(); err == nil {
+	if _, err := newParser(nil, "").parseSchema(); err == nil {
 		t.Error("should return error")
 	}
 }
 
 func TestBadToken(t *testing.T) {
-	err := ParseDocument([]byte(`
+	_, err := ParseDocument([]byte(`
 query ф {
 	me {
 		id
@@ -37,7 +37,7 @@ query ф {
 }
 
 func TestParseQuery(t *testing.T) {
-	err := ParseDocument([]byte(`
+	_, err := ParseDocument([]byte(`
 query _ {
 	me {
 		id
@@ -50,14 +50,14 @@ query _ {
 }
 
 func TestQueryShorthand(t *testing.T) {
-	err := ParseDocument([]byte("{ field }"))
+	_, err := ParseDocument([]byte("{ field }"))
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestParseInvalids(t *testing.T) {
-	err := ParseDocument([]byte("{"))
+	_, err := ParseDocument([]byte("{"))
 	if err == nil {
 		t.Errorf("expecting error, found nil")
 	}
@@ -66,7 +66,7 @@ func TestParseInvalids(t *testing.T) {
 		t.Errorf("expecting %s, found %s", expecting, err)
 	}
 
-	err = ParseDocument([]byte(`
+	_, err = ParseDocument([]byte(`
 { ...MissingOn }
 fragment MissingOn Type
 `))
@@ -78,7 +78,7 @@ fragment MissingOn Type
 		t.Errorf("expecting %s, found %s", expecting, err)
 	}
 
-	err = ParseDocument([]byte(`{ field: {} }`))
+	_, err = ParseDocument([]byte(`{ field: {} }`))
 	if err == nil {
 		t.Error("expecting error, found nil")
 	}
@@ -87,7 +87,7 @@ fragment MissingOn Type
 		t.Errorf("expecting %s, found %s", expecting, err)
 	}
 
-	err = ParseDocument([]byte(`notAnOper Foo { field }`))
+	_, err = ParseDocument([]byte(`notAnOper Foo { field }`))
 	if err == nil {
 		t.Error("expecting error, found nil")
 	}
@@ -96,7 +96,7 @@ fragment MissingOn Type
 		t.Errorf("expecting %s, found %s", expecting, err)
 	}
 
-	err = ParseDocument([]byte(`...`))
+	_, err = ParseDocument([]byte(`...`))
 	if err == nil {
 		t.Error("expecting error, found nil")
 	}
@@ -105,7 +105,7 @@ fragment MissingOn Type
 		t.Errorf("expecting %s, found %s", expecting, err)
 	}
 
-	err = ParseDocument([]byte("query"))
+	_, err = ParseDocument([]byte("query"))
 	if err == nil {
 		t.Error("expecting error, found nil")
 	}
@@ -116,21 +116,21 @@ fragment MissingOn Type
 }
 
 func TestParseVariableInline(t *testing.T) {
-	err := ParseDocument([]byte(`{ field(complex: { a: { b: [ $var ] } }) }`))
+	_, err := ParseDocument([]byte(`{ field(complex: { a: { b: [ $var ] } }) }`))
 	if err != nil {
 		t.Error("unexpected error", err)
 	}
 }
 
 func TestParseDefaultValues(t *testing.T) {
-	err := ParseDocument([]byte(`query Foo($x: Complex = { a: { b: [ true ] } }) { field }`))
+	_, err := ParseDocument([]byte(`query Foo($x: Complex = { a: { b: [ true ] } }) { field }`))
 	if err != nil {
 		t.Error("unexpected error", err)
 	}
 }
 
 func TestParseInvalidUseOn(t *testing.T) {
-	err := ParseDocument([]byte(`fragment on on on { on }`))
+	_, err := ParseDocument([]byte(`fragment on on on { on }`))
 	if err == nil {
 		t.Error("should return error")
 	}
@@ -141,7 +141,7 @@ func TestParseInvalidUseOn(t *testing.T) {
 }
 
 func TestParseInvalidSpreadOfOn(t *testing.T) {
-	err := ParseDocument([]byte(`{ ...on }`))
+	_, err := ParseDocument([]byte(`{ ...on }`))
 	if err == nil {
 		t.Error("should return error")
 	}
@@ -152,14 +152,14 @@ func TestParseInvalidSpreadOfOn(t *testing.T) {
 }
 
 func TestParseNullMisuse(t *testing.T) {
-	err := ParseDocument([]byte(`{ fieldWithNullableStringInput(input: null) }`))
+	_, err := ParseDocument([]byte(`{ fieldWithNullableStringInput(input: null) }`))
 	if err != nil {
 		t.Error("unexpected error", err)
 	}
 }
 
 func TestParseQueryWithComment(t *testing.T) {
-	err := ParseDocument([]byte(`
+	_, err := ParseDocument([]byte(`
 # This comment has a \u0A0A multi-byte character.
 {
 	field(arg: "Has a \u0A0A multi-byte character.")
@@ -170,7 +170,7 @@ func TestParseQueryWithComment(t *testing.T) {
 }
 
 func TestParseQueryWithUnicode(t *testing.T) {
-	err := ParseDocument([]byte(`
+	_, err := ParseDocument([]byte(`
 # This comment has a фы世界 multi-byte character.
 { field(arg: "Has a фы世界 multi-byte character.") }`))
 	if err != nil {
@@ -179,7 +179,7 @@ func TestParseQueryWithUnicode(t *testing.T) {
 }
 
 func TestParseQueryFile(t *testing.T) {
-	err := ParseDocument([]byte(`# Copyright (c) 2015-present, Facebook, Inc.
+	_, err := ParseDocument([]byte(`# Copyright (c) 2015-present, Facebook, Inc.
 #
 # This source code is licensed under the MIT license found in the
 # LICENSE file in the root directory of this source tree.
@@ -263,7 +263,7 @@ fragment %v on Type {
 	%v(%v: $%v) @%v(%v: $%v)
 }`, nonKeyword, fragmentName, nonKeyword, fragmentName, nonKeyword, nonKeyword,
 			nonKeyword, nonKeyword, nonKeyword, nonKeyword)
-		err := ParseDocument([]byte(query))
+		_, err := ParseDocument([]byte(query))
 		if err != nil {
 			t.Error("unexpected error", err, query)
 		}
@@ -271,7 +271,7 @@ fragment %v on Type {
 }
 
 func TestParseSubscription(t *testing.T) {
-	err := ParseDocument([]byte(`
+	_, err := ParseDocument([]byte(`
 subscription Foo {
   subscriptionField
 }`))
@@ -281,7 +281,7 @@ subscription Foo {
 }
 
 func TestParseUnnamedSubscription(t *testing.T) {
-	err := ParseDocument([]byte(`
+	_, err := ParseDocument([]byte(`
 subscription {
   subscriptionField
 }`))
@@ -291,7 +291,7 @@ subscription {
 }
 
 func TestParseMutation(t *testing.T) {
-	err := ParseDocument([]byte(`
+	_, err := ParseDocument([]byte(`
 mutation Foo {
   mutationField
 }`))
@@ -301,7 +301,7 @@ mutation Foo {
 }
 
 func TestParseUnnamedMutation(t *testing.T) {
-	err := ParseDocument([]byte(`
+	_, err := ParseDocument([]byte(`
 mutation {
   mutationField
 }`))
@@ -311,7 +311,7 @@ mutation {
 }
 
 func TestInvalidSchema(t *testing.T) {
-	err := ParseSchema([]byte(`
+	_, err := ParseSchema([]byte(`
 type Character {
 	name: String!
 	appearsIn: [Episode]!
@@ -325,7 +325,7 @@ notSchema {
 		t.Error("should return error")
 	}
 
-	err = ParseSchema([]byte(`
+	_, err = ParseSchema([]byte(`
 notSchema {
 	foo: bar
 }
@@ -337,7 +337,7 @@ notSchema {
 }
 
 func TestParseSchemaFile(t *testing.T) {
-	err := ParseSchema([]byte(`
+	_, err := ParseSchema([]byte(`
 # Copyright (c) 2015-present, Facebook, Inc.
 #
 # This source code is licensed under the MIT license found in the

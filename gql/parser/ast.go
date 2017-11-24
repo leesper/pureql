@@ -1,9 +1,7 @@
-package ast
+package parser
 
 import (
 	"go/token"
-
-	"github.com/leesper/pureql/gql/parser"
 )
 
 // Node is the interface for all AST node types.
@@ -42,6 +40,14 @@ type Type interface {
 	typeNode()
 }
 
+// Schema is the interface for all schema node types:
+// InterfaceDefinition, ScalarDefinition, InputObjectDefinition TypeDefinition,
+// ExtendDefinition, DirectiveDefinition, SchemaDefinition, EnumDefinition, UnionDefinition
+type Schema interface {
+	Node
+	schemaNode()
+}
+
 // Document node
 type Document struct {
 	Defs []Definition
@@ -51,9 +57,9 @@ type Document struct {
 
 // OperationDefinition node
 type OperationDefinition struct {
-	OperType parser.Token
+	OperType Token
 	OperPos  token.Pos
-	Name     parser.Token
+	Name     Token
 	NamePos  token.Pos
 	VarDefns *VariableDefinitions
 	Directs  *Directives
@@ -75,7 +81,7 @@ func (o *OperationDefinition) defnNode() {}
 // FragmentDefinition node
 type FragmentDefinition struct {
 	Fragment token.Pos
-	Name     parser.Token
+	Name     Token
 	NamePos  token.Pos
 	TypeCond *TypeCondition
 	Directs  *Directives
@@ -99,7 +105,7 @@ func (f *FragmentDefinition) defnNode() {}
 // Field node
 type Field struct {
 	Als     *Alias
-	Name    parser.Token
+	Name    Token
 	NamePos token.Pos
 	Args    *Arguments
 	Directs *Directives
@@ -133,7 +139,7 @@ func (f *Field) selectNode() {}
 // FragmentSpread node
 type FragmentSpread struct {
 	Spread  token.Pos
-	Name    parser.Token
+	Name    Token
 	NamePos token.Pos
 	Directs *Directives
 }
@@ -178,7 +184,7 @@ func (i *InlineFragment) selectNode() {}
 // Variable node
 type Variable struct {
 	Dollar  token.Pos
-	Name    parser.Token
+	Name    Token
 	NamePos token.Pos
 }
 
@@ -196,7 +202,7 @@ func (v *Variable) valueNode() {}
 
 // LiteralValue node for IntValue, FloatValue and StringValue
 type LiteralValue struct {
-	Val    parser.Token
+	Val    Token
 	ValPos token.Pos
 }
 
@@ -212,9 +218,9 @@ func (l *LiteralValue) End() token.Pos {
 
 func (l *LiteralValue) valueNode() {}
 
-// NameValue node for BooleanValue, NullValue and EnumValue
+// NameValue node for BooleanValue and NullValue
 type NameValue struct {
-	Val    parser.Token
+	Val    Token
 	ValPos token.Pos
 }
 
@@ -229,6 +235,28 @@ func (n *NameValue) End() token.Pos {
 }
 
 func (n *NameValue) valueNode() {}
+
+// EnumValue node
+type EnumValue struct {
+	Name    Token
+	NamePos token.Pos
+	Directs *Directives
+}
+
+// Pos returns position of first character belong to the node
+func (e *EnumValue) Pos() token.Pos {
+	return e.NamePos
+}
+
+// End returns position of first character immediately after the node
+func (e *EnumValue) End() token.Pos {
+	if e.Directs != nil {
+		return e.Directs.End()
+	}
+	return token.Pos(int(e.NamePos) + len(e.Name.Text))
+}
+
+func (e *EnumValue) valueNode() {}
 
 // ListValue node
 type ListValue struct {
@@ -289,7 +317,7 @@ func (s *SelectionSet) End() token.Pos {
 
 // Alias node
 type Alias struct {
-	Name    parser.Token
+	Name    Token
 	NamePos token.Pos
 	Colon   token.Pos
 }
@@ -323,7 +351,7 @@ func (a *Arguments) End() token.Pos {
 
 // Argument node
 type Argument struct {
-	Name    parser.Token
+	Name    Token
 	NamePos token.Pos
 	Colon   token.Pos
 	Val     Value
@@ -357,7 +385,7 @@ func (t *TypeCondition) End() token.Pos {
 
 // ObjectField node
 type ObjectField struct {
-	Name    parser.Token
+	Name    Token
 	NamePos token.Pos
 	Colon   token.Pos
 	Val     Value
@@ -429,7 +457,7 @@ func (d *DefaultValue) End() token.Pos {
 
 // NamedType node
 type NamedType struct {
-	Name    parser.Token
+	Name    Token
 	NamePos token.Pos
 	NonNull bool
 	BangPos token.Pos
@@ -447,6 +475,8 @@ func (n *NamedType) End() token.Pos {
 	}
 	return token.Pos(int(n.NamePos) + 1)
 }
+
+func (n *NamedType) typeNode() {}
 
 // ListType node
 type ListType struct {
@@ -470,6 +500,8 @@ func (l *ListType) End() token.Pos {
 	return token.Pos(int(l.Rbrack) + 1)
 }
 
+func (l *ListType) typeNode() {}
+
 // Directives node
 type Directives struct {
 	Directs []*Directive
@@ -488,7 +520,7 @@ func (d *Directives) End() token.Pos {
 // Directive node
 type Directive struct {
 	At      token.Pos
-	Name    parser.Token
+	Name    Token
 	NamePos token.Pos
 	Args    *Arguments
 }
@@ -508,7 +540,7 @@ func (d *Directive) End() token.Pos {
 // InterfaceDefinition node
 type InterfaceDefinition struct {
 	Interface  token.Pos
-	Name       parser.Token
+	Name       Token
 	NamePos    token.Pos
 	Directs    *Directives
 	Lbrace     token.Pos
@@ -526,9 +558,11 @@ func (i *InterfaceDefinition) End() token.Pos {
 	return token.Pos(int(i.Rbrace) + 1)
 }
 
+func (i *InterfaceDefinition) schemaNode() {}
+
 // FieldDefinition node
 type FieldDefinition struct {
-	Name     parser.Token
+	Name     Token
 	NamePos  token.Pos
 	ArgDefns *ArgumentsDefinition
 	Colon    token.Pos
@@ -568,8 +602,9 @@ func (a *ArgumentsDefinition) End() token.Pos {
 
 // InputValueDefinition node
 type InputValueDefinition struct {
-	Name    parser.Token
+	Name    Token
 	NamePos token.Pos
+	Colon   token.Pos
 	Typ     Type
 	DeflVal *DefaultValue
 	Directs *Directives
@@ -594,7 +629,7 @@ func (i *InputValueDefinition) End() token.Pos {
 // ScalarDefinition node
 type ScalarDefinition struct {
 	Scalar  token.Pos
-	Name    parser.Token
+	Name    Token
 	NamePos token.Pos
 	Directs *Directives
 }
@@ -612,14 +647,16 @@ func (s *ScalarDefinition) End() token.Pos {
 	return token.Pos(int(s.NamePos) + 1)
 }
 
+func (s *ScalarDefinition) schemaNode() {}
+
 // InputObjectDefinition node
 type InputObjectDefinition struct {
 	Input         token.Pos
-	Name          parser.Token
+	Name          Token
 	NamePos       token.Pos
 	Directs       *Directives
 	Lbrace        token.Pos
-	InputValDefns *InputValueDefinition
+	InputValDefns []*InputValueDefinition
 	Rbrace        token.Pos
 }
 
@@ -633,13 +670,14 @@ func (i *InputObjectDefinition) End() token.Pos {
 	return token.Pos(int(i.Rbrace) + 1)
 }
 
+func (i *InputObjectDefinition) schemaNode() {}
+
 // TypeDefinition node
 type TypeDefinition struct {
 	Typ        token.Pos
-	Name       parser.Token
+	Name       Token
 	NamePos    token.Pos
-	Implements token.Pos
-	NamedTyps  []*NamedType
+	Implements *ImplementsInterfaces
 	Directs    *Directives
 	Lbrace     token.Pos
 	FieldDefns []*FieldDefinition
@@ -656,16 +694,28 @@ func (t *TypeDefinition) End() token.Pos {
 	return token.Pos(int(t.Rbrace) + 1)
 }
 
+func (t *TypeDefinition) schemaNode() {}
+
+// ImplementsInterfaces node
+type ImplementsInterfaces struct {
+	Implements token.Pos
+	NamedTyps  []*NamedType
+}
+
+// Pos returns position of first character belong to the node
+func (i *ImplementsInterfaces) Pos() token.Pos {
+	return i.Implements
+}
+
+// End returns position of first character immediately after the node
+func (i *ImplementsInterfaces) End() token.Pos {
+	return i.NamedTyps[len(i.NamedTyps)-1].End()
+}
+
 // ExtendDefinition node
 type ExtendDefinition struct {
-	Extend     token.Pos
-	Typ        token.Pos
-	Name       parser.Token
-	NamePos    token.Pos
-	Directs    *Directives
-	Lbrace     token.Pos
-	FieldDefns []*FieldDefinition
-	Rbrace     token.Pos
+	Extend  token.Pos
+	TypDefn *TypeDefinition
 }
 
 // Pos returns position of first character belong to the node
@@ -675,14 +725,16 @@ func (e *ExtendDefinition) Pos() token.Pos {
 
 // End returns position of first character immediately after the node
 func (e *ExtendDefinition) End() token.Pos {
-	return token.Pos(int(e.Rbrace) + 1)
+	return e.TypDefn.End()
 }
+
+func (e *ExtendDefinition) schemaNode() {}
 
 //DirectiveDefinition node
 type DirectiveDefinition struct {
 	Direct  token.Pos
 	At      token.Pos
-	Name    parser.Token
+	Name    Token
 	NamePos token.Pos
 	Args    *ArgumentsDefinition
 	On      token.Pos
@@ -699,9 +751,11 @@ func (d *DirectiveDefinition) End() token.Pos {
 	return d.Locs.End()
 }
 
+func (d *DirectiveDefinition) schemaNode() {}
+
 // DirectiveLocations node
 type DirectiveLocations struct {
-	Name    parser.Token
+	Name    Token
 	NamePos token.Pos
 	Locs    []*DirectiveLocation
 }
@@ -722,7 +776,7 @@ func (d *DirectiveLocations) End() token.Pos {
 // DirectiveLocation node
 type DirectiveLocation struct {
 	Pipe    token.Pos
-	Name    parser.Token
+	Name    Token
 	NamePos token.Pos
 }
 
@@ -755,9 +809,11 @@ func (s *SchemaDefinition) End() token.Pos {
 	return token.Pos(int(s.Rbrace) + 1)
 }
 
+func (s *SchemaDefinition) schemaNode() {}
+
 // OperationTypeDefinition node
 type OperationTypeDefinition struct {
-	OperType parser.Token
+	OperType Token
 	OperPos  token.Pos
 	Colon    token.Pos
 	NamedTyp *NamedType
@@ -775,13 +831,13 @@ func (o *OperationTypeDefinition) End() token.Pos {
 
 // EnumDefinition node
 type EnumDefinition struct {
-	Enum         token.Pos
-	Name         parser.Token
-	NamePos      token.Pos
-	Directs      *Directives
-	Lbrace       token.Pos
-	EnumValDefns []*EnumValueDefinition
-	Rbrace       token.Pos
+	Enum     token.Pos
+	Name     Token
+	NamePos  token.Pos
+	Directs  *Directives
+	Lbrace   token.Pos
+	EnumVals []*EnumValue
+	Rbrace   token.Pos
 }
 
 // Pos returns position of first character belong to the node
@@ -794,9 +850,11 @@ func (e *EnumDefinition) End() token.Pos {
 	return token.Pos(int(e.Rbrace) + 1)
 }
 
+func (e *EnumDefinition) schemaNode() {}
+
 // EnumValueDefinition node
 type EnumValueDefinition struct {
-	Name    parser.Token
+	Name    Token
 	NamePos token.Pos
 	Directs *Directives
 }
@@ -817,7 +875,7 @@ func (e *EnumValueDefinition) End() token.Pos {
 // UnionDefinition node
 type UnionDefinition struct {
 	Union   token.Pos
-	Name    parser.Token
+	Name    Token
 	NamePos token.Pos
 	Directs *Directives
 	Eq      token.Pos
@@ -834,9 +892,11 @@ func (u *UnionDefinition) End() token.Pos {
 	return u.Members.End()
 }
 
+func (u *UnionDefinition) schemaNode() {}
+
 // UnionMembers node
 type UnionMembers struct {
-	NamedTyp NamedType
+	NamedTyp *NamedType
 	Members  []*UnionMember
 }
 
@@ -856,7 +916,7 @@ func (u *UnionMembers) End() token.Pos {
 // UnionMember node
 type UnionMember struct {
 	Pipe     token.Pos
-	NamedTyp NamedType
+	NamedTyp *NamedType
 }
 
 // Pos returns position of first character belong to the node

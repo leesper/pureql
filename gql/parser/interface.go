@@ -17,13 +17,13 @@ func (e ErrBadParse) Error() string {
 }
 
 // ParseDocument returns ast.Document.
-func ParseDocument(document []byte) error {
+func ParseDocument(document []byte) (*Document, error) {
 	// document = []byte(strings.TrimRight(string(document), "\n\t\r "))
 	return newParser(document, "").parseDocument()
 }
 
 // ParseSchema returns ast.Schema.
-func ParseSchema(schema []byte) error {
+func ParseSchema(schema []byte) (Schema, error) {
 	// schema = []byte(strings.TrimRight(string(schema), "\n\t\r "))
 	return newParser(schema, "").parseSchema()
 }

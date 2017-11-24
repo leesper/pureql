@@ -38,52 +38,56 @@ func newParser(source []byte, filename string) *parser {
 	return p
 }
 
-func (p *parser) parseDocument() error {
+func (p *parser) parseDocument() (*Document, error) {
 	if p == nil {
-		return errors.New("parser nil")
+		return nil, errors.New("parser nil")
 	}
 
-	err := p.definition()
+	document := &Document{}
+
+	defn, err := p.definition()
 	if err != nil {
-		return err
+		return document, err
 	}
+	document.Defs = append(document.Defs, defn)
 
 	for p.lookAhead(1) != TokenEOF {
-		err = p.definition()
+		defn, err = p.definition()
 		if err != nil {
-			return err
+			return document, err
 		}
+		document.Defs = append(document.Defs, defn)
 	}
-	return nil
+	return document, nil
 }
 
-func (p *parser) definition() error {
+func (p *parser) definition() (Definition, error) {
 	if p.lookAhead(1).Text == Stringify(FRAGMENT) {
 		return p.fragmentDefinition()
 	}
 	return p.operationDefinition()
 }
 
-func (p *parser) parseSchema() error {
+func (p *parser) parseSchema() (Schema, error) {
 	if p == nil {
-		return errors.New("parser nil")
+		return nil, errors.New("parser nil")
 	}
 
-	err := p.schema()
+	schema, err := p.schema()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	for p.lookAhead(1) != TokenEOF {
-		err = p.schema()
+		schema, err = p.schema()
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
-	return nil
+	return schema, nil
 }
 
-func (p *parser) schema() error {
+func (p *parser) schema() (Schema, error) {
 	switch p.lookAhead(1).Text {
 	case Stringify(INTERFACE):
 		return p.interfaceDefinition()
@@ -106,13 +110,18 @@ func (p *parser) schema() error {
 	}
 }
 
-func (p *parser) operationDefinition() error {
+func (p *parser) operationDefinition() (*OperationDefinition, error) {
+	var err error
+
+	operDefn := &OperationDefinition{}
+
 	if p.lookAhead(1).Kind == LBRACE {
-		return p.selectionSet()
+		operDefn.SelSet, err = p.selectionSet()
+		return operDefn, err
 	}
 
-	// TODO: subscription
-	var err error
+	operDefn.OperType = p.lookAhead(1)
+	operDefn.OperPos = p.input.pos(p.tokenOffset(1))
 	if err = p.match(QUERY); err != nil {
 		if err = p.match(MUTATION); err != nil {
 			if err = p.match(SUBSCRIPTION); err != nil {
@@ -120,136 +129,189 @@ func (p *parser) operationDefinition() error {
 					Stringify(QUERY),
 					Stringify(MUTATION),
 					Stringify(SUBSCRIPTION))
-				return p.parseError(expect)
+				return operDefn, p.parseError(expect)
 			}
 		}
 	}
 
 	if p.lookAhead(1).Kind == NAME {
+		operDefn.Name = p.lookAhead(1)
+		operDefn.NamePos = p.input.pos(p.tokenOffset(1))
 		p.match(NAME)
 	}
 
 	if p.lookAhead(1).Kind == LPAREN {
-		if err = p.variableDefinitions(); err != nil {
-			return err
+		operDefn.VarDefns, err = p.variableDefinitions()
+		if err != nil {
+			return operDefn, err
 		}
 	}
 
 	if p.lookAhead(1).Kind == AT {
-		if err = p.directives(); err != nil {
-			return err
+		operDefn.Directs, err = p.directives()
+		if err != nil {
+			return operDefn, err
 		}
 	}
 
-	return p.selectionSet()
+	operDefn.SelSet, err = p.selectionSet()
+	return operDefn, err
 }
 
-func (p *parser) variableDefinitions() error {
+func (p *parser) variableDefinitions() (*VariableDefinitions, error) {
+	varDefns := &VariableDefinitions{
+		Lparen: p.input.pos(p.tokenOffset(1)),
+	}
 	err := p.match(LPAREN)
 	if err != nil {
-		return err
+		return varDefns, err
 	}
 
-	if err = p.variableDefinition(); err != nil {
-		return err
+	var varDefn *VariableDefinition
+	varDefn, err = p.variableDefinition()
+	if err != nil {
+		return varDefns, err
 	}
+	varDefns.VarDefns = append(varDefns.VarDefns, varDefn)
 
 	for p.lookAhead(1).Kind != RPAREN {
-		if err = p.variableDefinition(); err != nil {
-			return err
+		varDefn, err = p.variableDefinition()
+		if err != nil {
+			return varDefns, err
 		}
+		varDefns.VarDefns = append(varDefns.VarDefns, varDefn)
 	}
 
+	varDefns.Rparen = p.input.pos(p.tokenOffset(1))
 	if err = p.match(RPAREN); err != nil {
-		return err
+		return varDefns, err
 	}
 
-	return nil
+	return varDefns, nil
 }
 
-func (p *parser) variableDefinition() error {
-	err := p.variable()
+func (p *parser) variableDefinition() (*VariableDefinition, error) {
+	var err error
+
+	varDefn := &VariableDefinition{}
+	varDefn.Var, err = p.variable()
 	if err != nil {
-		return err
+		return varDefn, err
 	}
 
+	varDefn.Colon = p.input.pos(p.tokenOffset(1))
 	if err = p.match(COLON); err != nil {
-		return err
+		return varDefn, err
 	}
 
-	if err = p.types(); err != nil {
-		return err
+	varDefn.Typ, err = p.types()
+	if err != nil {
+		return varDefn, err
 	}
 
 	if p.lookAhead(1).Kind == EQL {
-		return p.defaultValue()
+		varDefn.DeflVal, err = p.defaultValue()
+		if err != nil {
+			return varDefn, err
+		}
 	}
 
-	return nil
+	return varDefn, nil
 }
 
-func (p *parser) types() error {
+func (p *parser) types() (Type, error) {
+	var typ Type
 	var err error
+	var isNamedType bool
 	if p.lookAhead(1).Kind == NAME {
-		if err = p.namedType(); err != nil {
-			return err
+		isNamedType = true
+		typ, err = p.namedType()
+		if err != nil {
+			return nil, err
 		}
 	} else {
-		if err = p.listType(); err != nil {
-			return err
+		typ, err = p.listType()
+		if err != nil {
+			return nil, err
 		}
 	}
 
 	// non-null
 	if p.lookAhead(1).Kind == BANG {
-		return p.match(BANG)
+		bangPos := p.input.pos(p.tokenOffset(1))
+		p.match(BANG)
+
+		if isNamedType {
+			typ.(*NamedType).NonNull = true
+			typ.(*NamedType).BangPos = bangPos
+		} else {
+			typ.(*ListType).NonNull = true
+			typ.(*ListType).BangPos = bangPos
+		}
 	}
 
-	return nil
+	return typ, nil
 }
 
-func (p *parser) namedType() error {
-	return p.match(NAME)
+func (p *parser) namedType() (*NamedType, error) {
+	namedTyp := &NamedType{
+		Name:    p.lookAhead(1),
+		NamePos: p.input.pos(p.tokenOffset(1)),
+	}
+	return namedTyp, p.match(NAME)
 }
 
-func (p *parser) listType() error {
+func (p *parser) listType() (*ListType, error) {
+	listTyp := &ListType{
+		Lbrack: p.input.pos(p.tokenOffset(1)),
+	}
 	err := p.match(LBRACK)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	if err = p.types(); err != nil {
-		return err
+	var typ Type
+	typ, err = p.types()
+	if err != nil {
+		return nil, err
+	}
+	listTyp.Typ = typ
+
+	listTyp.Rbrack = p.input.pos(p.tokenOffset(1))
+	err = p.match(RBRACK)
+	if err != nil {
+		return nil, err
 	}
 
-	if err = p.match(RBRACK); err != nil {
-		return err
-	}
-
-	return nil
+	return listTyp, nil
 }
 
-func (p *parser) defaultValue() error {
+func (p *parser) defaultValue() (*DefaultValue, error) {
+	deflVal := &DefaultValue{
+		Eq: p.input.pos(p.tokenOffset(1)),
+	}
+
 	err := p.match(EQL)
 	if err != nil {
-		return err
+		return deflVal, err
 	}
 
-	if err = p.valueConst(); err != nil {
-		return err
+	deflVal.Val, err = p.valueConst()
+	if err != nil {
+		return deflVal, err
 	}
 
-	return nil
+	return deflVal, nil
 }
 
-func (p *parser) valueConst() error {
+func (p *parser) valueConst() (Value, error) {
 	switch p.lookAhead(1).Kind {
-	case INT:
-		return p.match(INT)
-	case FLOAT:
-		return p.match(FLOAT)
-	case STRING:
-		return p.match(STRING)
+	case INT, FLOAT, STRING:
+		val := &LiteralValue{
+			Val:    p.lookAhead(1),
+			ValPos: p.input.pos(p.tokenOffset(1)),
+		}
+		return val, p.match(p.lookAhead(1).Kind)
 	case NAME:
 		text := p.lookAhead(1).Text
 		if text == "true" || text == "false" {
@@ -271,95 +333,132 @@ func (p *parser) valueConst() error {
 			Stringify(DOLLAR),
 			Stringify(LBRACK),
 			Stringify(LBRACE))
-		return p.parseError(expect)
+		return nil, p.parseError(expect)
 	}
 }
 
-func (p *parser) listValueConst() error {
+func (p *parser) listValueConst() (*ListValue, error) {
+	listVal := &ListValue{}
+
+	listVal.Lbrack = p.input.pos(p.tokenOffset(1))
 	err := p.match(LBRACK)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if p.lookAhead(1).Kind == RBRACK {
-		return p.match(RBRACK)
+		listVal.Rbrack = p.input.pos(p.tokenOffset(1))
+		return listVal, p.match(RBRACK)
 	}
 
-	if err = p.valueConst(); err != nil {
-		return err
+	var val Value
+	val, err = p.valueConst()
+	if err != nil {
+		return nil, err
 	}
+	listVal.Vals = append(listVal.Vals, val)
 
 	for p.lookAhead(1).Kind != RBRACK {
-		if err = p.value(); err != nil {
-			return err
+		val, err = p.valueConst()
+		if err != nil {
+			return nil, err
 		}
+		listVal.Vals = append(listVal.Vals, val)
 	}
 
-	return p.match(RBRACK)
+	listVal.Rbrack = p.input.pos(p.tokenOffset(1))
+	return listVal, p.match(RBRACK)
 }
 
-func (p *parser) objectValueConst() error {
+func (p *parser) objectValueConst() (*ObjectValue, error) {
+	objVal := &ObjectValue{}
+
+	objVal.Lbrace = p.input.pos(p.tokenOffset(1))
 	err := p.match(LBRACE)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if p.lookAhead(1).Kind == RBRACE {
-		return p.match(RBRACE)
+		objVal.Rbrace = p.input.pos(p.tokenOffset(1))
+		return objVal, p.match(RBRACE)
 	}
 
-	if err = p.objectFieldConst(); err != nil {
-		return err
+	var objField *ObjectField
+	objField, err = p.objectFieldConst()
+	if err != nil {
+		return nil, err
 	}
+	objVal.ObjFields = append(objVal.ObjFields, objField)
 
 	for p.lookAhead(1).Kind != RBRACE {
-		if err = p.objectFieldConst(); err != nil {
-			return err
+		objField, err = p.objectFieldConst()
+		if err != nil {
+			return nil, err
 		}
+		objVal.ObjFields = append(objVal.ObjFields, objField)
 	}
 
-	return p.match(RBRACE)
+	objVal.Rbrace = p.input.pos(p.tokenOffset(1))
+	return objVal, p.match(RBRACE)
 }
 
-func (p *parser) objectFieldConst() error {
+func (p *parser) objectFieldConst() (*ObjectField, error) {
+	objField := &ObjectField{}
+
+	objField.Name = p.lookAhead(1)
+	objField.NamePos = p.input.pos(p.tokenOffset(1))
 	err := p.match(NAME)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	if err = p.match(COLON); err != nil {
-		return err
+	objField.Colon = p.input.pos(p.tokenOffset(1))
+	err = p.match(COLON)
+	if err != nil {
+		return nil, err
 	}
 
-	return p.valueConst()
+	objField.Val, err = p.valueConst()
+	if err != nil {
+		return nil, err
+	}
+
+	return objField, nil
 }
 
-func (p *parser) nonNullType() error {
-	return errors.New("not implemented")
-}
+func (p *parser) selectionSet() (*SelectionSet, error) {
+	selSet := &SelectionSet{}
 
-func (p *parser) selectionSet() error {
+	selSet.Lbrace = p.input.pos(p.tokenOffset(1))
 	err := p.match(LBRACE)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	if err = p.selection(); err != nil {
-		return err
+	var sel Selection
+	sel, err = p.selection()
+	if err != nil {
+		return nil, err
 	}
+	selSet.Sels = append(selSet.Sels, sel)
+
 	for p.lookAhead(1).Kind != RBRACE {
-		if err = p.selection(); err != nil {
-			return err
+		sel, err = p.selection()
+		if err != nil {
+			return nil, err
 		}
+		selSet.Sels = append(selSet.Sels, sel)
 	}
 
+	selSet.Rbrace = p.input.pos(p.tokenOffset(1))
 	if err = p.match(RBRACE); err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	return selSet, nil
 }
 
-func (p *parser) selection() error {
+func (p *parser) selection() (Selection, error) {
 	if p.lookAhead(1).Kind == SPREAD {
 		if p.lookAhead(2).Kind == NAME && p.lookAhead(2).Text != Stringify(ON) {
 			return p.fragmentSpread()
@@ -370,145 +469,203 @@ func (p *parser) selection() error {
 	return p.field()
 }
 
-func (p *parser) field() error {
+func (p *parser) field() (*Field, error) {
+	field := &Field{}
+
 	var err error
 	if p.lookAhead(1).Kind == NAME && p.lookAhead(2).Kind == COLON {
-		if err = p.alias(); err != nil {
-			return err
+		field.Als, err = p.alias()
+		if err != nil {
+			return nil, err
 		}
 	}
 
+	field.Name = p.lookAhead(1)
+	field.NamePos = p.input.pos(p.tokenOffset(1))
 	if err = p.match(NAME); err != nil {
-		return err
+		return nil, err
 	}
 
 	if p.lookAhead(1).Kind == LPAREN {
-		if err = p.arguments(); err != nil {
-			return err
+		field.Args, err = p.arguments()
+		if err != nil {
+			return nil, err
 		}
 	}
 
 	if p.lookAhead(1).Kind == AT {
-		if err = p.directives(); err != nil {
-			return err
+		field.Directs, err = p.directives()
+		if err != nil {
+			return nil, err
 		}
 	}
 
 	if p.lookAhead(1).Kind == LBRACE {
-		if err = p.selectionSet(); err != nil {
-			return err
+		field.SelSet, err = p.selectionSet()
+		if err != nil {
+			return nil, err
 		}
 	}
 
-	return nil
+	return field, nil
 }
 
-func (p *parser) fragmentSpread() error {
+func (p *parser) fragmentSpread() (*FragmentSpread, error) {
+	frag := &FragmentSpread{}
+
+	frag.Spread = p.input.pos(p.tokenOffset(1))
 	err := p.match(SPREAD)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if p.lookAhead(1).Text == Stringify(ON) {
-		return p.parseError("NAME but not *on*")
+		return nil, p.parseError("NAME but not *on*")
 	}
 
+	frag.Name = p.lookAhead(1)
+	frag.NamePos = p.input.pos(p.tokenOffset(1))
 	if err = p.match(NAME); err != nil {
-		return err
+		return nil, err
 	}
 
 	if p.lookAhead(1).Kind == AT {
-		return p.directives()
+		frag.Directs, err = p.directives()
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	return nil
+	return frag, nil
 }
 
-func (p *parser) inlineFragment() error {
+func (p *parser) inlineFragment() (*InlineFragment, error) {
+	frag := &InlineFragment{}
+
+	frag.Spread = p.input.pos(p.tokenOffset(1))
 	err := p.match(SPREAD)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if p.lookAhead(1).Text == Stringify(ON) {
-		if err = p.typeCondition(); err != nil {
-			return err
+		frag.TypeCond, err = p.typeCondition()
+		if err != nil {
+			return nil, err
 		}
 	}
 
 	if p.lookAhead(1).Kind == AT {
-		if err = p.directives(); err != nil {
-			return err
+		frag.Directs, err = p.directives()
+		if err != nil {
+			return nil, err
 		}
 	}
 
-	return p.selectionSet()
+	frag.SelSet, err = p.selectionSet()
+	if err != nil {
+		return nil, err
+	}
+
+	return frag, nil
 }
 
-func (p *parser) typeCondition() error {
+func (p *parser) typeCondition() (*TypeCondition, error) {
+	typCond := &TypeCondition{}
+
+	typCond.On = p.input.pos(p.tokenOffset(1))
 	err := p.match(ON)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return p.namedType()
+
+	typCond.NamedTyp, err = p.namedType()
+	if err != nil {
+		return nil, err
+	}
+
+	return typCond, nil
 }
 
-func (p *parser) alias() error {
+func (p *parser) alias() (*Alias, error) {
+	a := &Alias{}
+	a.Name = p.lookAhead(1)
+	a.NamePos = p.input.pos(p.tokenOffset(1))
 	err := p.match(NAME)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
+	a.Colon = p.input.pos(p.tokenOffset(1))
 	if err = p.match(COLON); err != nil {
-		return err
+		return nil, err
 	}
 
-	return nil
+	return a, nil
 }
 
-func (p *parser) arguments() error {
+func (p *parser) arguments() (*Arguments, error) {
+	args := &Arguments{}
+
+	args.Lparen = p.input.pos(p.tokenOffset(1))
 	err := p.match(LPAREN)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	if err = p.argument(); err != nil {
-		return err
+	var arg *Argument
+	arg, err = p.argument()
+	if err != nil {
+		return nil, err
 	}
+	args.Args = append(args.Args, arg)
 
 	for p.lookAhead(1).Kind != RPAREN {
-		if err = p.argument(); err != nil {
-			return err
+		arg, err = p.argument()
+		if err != nil {
+			return nil, err
 		}
+		args.Args = append(args.Args, arg)
 	}
 
+	args.Rparen = p.input.pos(p.tokenOffset(1))
 	if err = p.match(RPAREN); err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+	return args, nil
 }
 
-func (p *parser) argument() error {
+func (p *parser) argument() (*Argument, error) {
+	arg := &Argument{}
+
+	arg.Name = p.lookAhead(1)
+	arg.NamePos = p.input.pos(p.tokenOffset(1))
 	err := p.match(NAME)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
+	arg.Colon = p.input.pos(p.tokenOffset(1))
 	if err = p.match(COLON); err != nil {
-		return err
+		return nil, err
 	}
 
-	return p.value()
+	arg.Val, err = p.value()
+	if err != nil {
+		return nil, err
+	}
+
+	return arg, nil
 }
 
-func (p *parser) value() error {
+func (p *parser) value() (Value, error) {
 	switch p.lookAhead(1).Kind {
-	case INT:
-		return p.match(INT)
-	case FLOAT:
-		return p.match(FLOAT)
-	case STRING:
-		return p.match(STRING)
+	case INT, FLOAT, STRING:
+		val := &LiteralValue{
+			Val:    p.lookAhead(1),
+			ValPos: p.input.pos(p.tokenOffset(1)),
+		}
+		return val, p.match(p.lookAhead(1).Kind)
 	case NAME:
 		text := p.lookAhead(1).Text
 		if text == "true" || text == "false" {
@@ -532,159 +689,237 @@ func (p *parser) value() error {
 			Stringify(DOLLAR),
 			Stringify(LBRACK),
 			Stringify(LBRACE))
-		return p.parseError(expect)
+		return nil, p.parseError(expect)
 	}
 }
 
-func (p *parser) variable() error {
+func (p *parser) variable() (*Variable, error) {
+	variable := &Variable{
+		Dollar: p.input.pos(p.tokenOffset(1)),
+	}
+
 	err := p.match(DOLLAR)
 	if err != nil {
-		return err
+		return variable, err
 	}
+
+	variable.Name = p.lookAhead(1)
+	variable.NamePos = p.input.pos(p.tokenOffset(1))
 	if err = p.match(NAME); err != nil {
-		return err
+		return variable, err
 	}
-	return nil
+
+	return variable, nil
 }
 
-func (p *parser) booleanValue() error {
-	return p.match(NAME)
+func (p *parser) booleanValue() (*NameValue, error) {
+	val := &NameValue{
+		Val:    p.lookAhead(1),
+		ValPos: p.input.pos(p.tokenOffset(1)),
+	}
+	return val, p.match(NAME)
 }
 
-func (p *parser) nullValue() error {
-	return p.match(NAME)
+func (p *parser) nullValue() (*NameValue, error) {
+	val := &NameValue{
+		Val:    p.lookAhead(1),
+		ValPos: p.input.pos(p.tokenOffset(1)),
+	}
+	return val, p.match(NAME)
 }
 
-func (p *parser) enumValue() error {
+func (p *parser) enumValue() (*EnumValue, error) {
+	val := &EnumValue{
+		Name:    p.lookAhead(1),
+		NamePos: p.input.pos(p.tokenOffset(1)),
+	}
+
 	err := p.match(NAME)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if p.lookAhead(1).Kind == AT {
-		if err = p.directives(); err != nil {
-			return err
+		directs, err := p.directives()
+		if err != nil {
+			return nil, err
 		}
+		val.Directs = directs
 	}
-	return nil
+	return val, nil
 }
 
-func (p *parser) listValue() error {
+func (p *parser) listValue() (*ListValue, error) {
+	listVal := &ListValue{}
+
+	listVal.Lbrack = p.input.pos(p.tokenOffset(1))
 	err := p.match(LBRACK)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if p.lookAhead(1).Kind == RBRACK {
-		return p.match(RBRACK)
+		listVal.Rbrack = p.input.pos(p.tokenOffset(1))
+		return listVal, p.match(RBRACK)
 	}
 
-	if err = p.value(); err != nil {
-		return err
+	var val Value
+	val, err = p.value()
+	if err != nil {
+		return nil, err
 	}
+	listVal.Vals = append(listVal.Vals, val)
 
 	for p.lookAhead(1).Kind != RBRACK {
-		if err = p.value(); err != nil {
-			return err
+		val, err = p.value()
+		if err != nil {
+			return nil, err
 		}
+		listVal.Vals = append(listVal.Vals, val)
 	}
 
-	return p.match(RBRACK)
+	listVal.Rbrack = p.input.pos(p.tokenOffset(1))
+	return listVal, p.match(RBRACK)
 }
 
-func (p *parser) objectValue() error {
+func (p *parser) objectValue() (*ObjectValue, error) {
+	objVal := &ObjectValue{}
+
+	objVal.Lbrace = p.input.pos(p.tokenOffset(1))
 	err := p.match(LBRACE)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if p.lookAhead(1).Kind == RBRACE {
-		return p.match(RBRACE)
+		objVal.Rbrace = p.input.pos(p.tokenOffset(1))
+		return objVal, p.match(RBRACE)
 	}
 
-	if err = p.objectField(); err != nil {
-		return err
+	objField := &ObjectField{}
+	objField, err = p.objectField()
+	if err != nil {
+		return nil, err
 	}
+	objVal.ObjFields = append(objVal.ObjFields, objField)
 
 	for p.lookAhead(1).Kind != RBRACE {
-		if err = p.objectField(); err != nil {
-			return err
+		objField, err = p.objectField()
+		if err != nil {
+			return nil, err
 		}
+		objVal.ObjFields = append(objVal.ObjFields, objField)
 	}
 
-	return p.match(RBRACE)
+	objVal.Rbrace = p.input.pos(p.tokenOffset(1))
+	return objVal, p.match(RBRACE)
 }
 
-func (p *parser) objectField() error {
+func (p *parser) objectField() (*ObjectField, error) {
+	objField := &ObjectField{}
+
+	objField.Name = p.lookAhead(1)
+	objField.NamePos = p.input.pos(p.tokenOffset(1))
 	err := p.match(NAME)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
+	objField.Colon = p.input.pos(p.tokenOffset(1))
 	if err = p.match(COLON); err != nil {
-		return err
+		return nil, err
 	}
 
-	return p.value()
+	objField.Val, err = p.value()
+	if err != nil {
+		return nil, err
+	}
+
+	return objField, nil
 }
 
-func (p *parser) directives() error {
-	err := p.directive()
+func (p *parser) directives() (*Directives, error) {
+	directs := &Directives{}
+
+	direct, err := p.directive()
 	if err != nil {
-		return err
+		return nil, err
 	}
+	directs.Directs = append(directs.Directs, direct)
 
 	for p.lookAhead(1).Kind == AT {
-		if err = p.directive(); err != nil {
-			return err
+		direct, err = p.directive()
+		if err != nil {
+			return nil, err
 		}
+		directs.Directs = append(directs.Directs, direct)
 	}
 
-	return nil
+	return directs, nil
 }
 
-func (p *parser) directive() error {
+func (p *parser) directive() (*Directive, error) {
+	direct := &Directive{}
+
+	direct.At = p.input.pos(p.tokenOffset(1))
 	err := p.match(AT)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
+	direct.Name = p.lookAhead(1)
+	direct.NamePos = p.input.pos(p.tokenOffset(1))
 	if err = p.match(NAME); err != nil {
-		return err
+		return nil, err
 	}
 
 	if p.lookAhead(1).Kind == LPAREN {
-		return p.arguments()
-	}
-
-	return nil
-}
-
-func (p *parser) fragmentDefinition() error {
-	err := p.match(FRAGMENT)
-	if err != nil {
-		return err
-	}
-
-	if p.lookAhead(1).Text == Stringify(ON) {
-		return p.parseError("NAME but not *on*")
-	}
-
-	if err = p.match(NAME); err != nil {
-		return err
-	}
-
-	if err = p.typeCondition(); err != nil {
-		return err
-	}
-
-	if p.lookAhead(1).Kind == AT {
-		if err = p.directives(); err != nil {
-			return err
+		direct.Args, err = p.arguments()
+		if err != nil {
+			return nil, err
 		}
 	}
 
-	return p.selectionSet()
+	return direct, nil
+}
+
+func (p *parser) fragmentDefinition() (*FragmentDefinition, error) {
+	frag := &FragmentDefinition{}
+
+	frag.Fragment = p.input.pos(p.tokenOffset(1))
+	err := p.match(FRAGMENT)
+	if err != nil {
+		return nil, err
+	}
+
+	if p.lookAhead(1).Text == Stringify(ON) {
+		return nil, p.parseError("NAME but not *on*")
+	}
+
+	frag.Name = p.lookAhead(1)
+	frag.NamePos = p.input.pos(p.tokenOffset(1))
+	if err = p.match(NAME); err != nil {
+		return nil, err
+	}
+
+	frag.TypeCond, err = p.typeCondition()
+	if err != nil {
+		return nil, err
+	}
+
+	if p.lookAhead(1).Kind == AT {
+		frag.Directs, err = p.directives()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	frag.SelSet, err = p.selectionSet()
+	if err != nil {
+		return nil, err
+	}
+
+	return frag, nil
 }
 
 func (p *parser) lookAhead(i int) Token {
@@ -730,313 +965,444 @@ func (p *parser) parseError(expect string) error {
 	}
 }
 
-func (p *parser) interfaceDefinition() error {
+func (p *parser) interfaceDefinition() (*InterfaceDefinition, error) {
+	inter := &InterfaceDefinition{}
+
+	inter.Interface = p.input.pos(p.tokenOffset(1))
 	err := p.match(INTERFACE)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
+	inter.Name = p.lookAhead(1)
+	inter.NamePos = p.input.pos(p.tokenOffset(1))
 	if err = p.match(NAME); err != nil {
-		return err
+		return nil, err
 	}
 
 	if p.lookAhead(1).Kind == AT {
-		if err = p.directives(); err != nil {
-			return err
+		inter.Directs, err = p.directives()
+		if err != nil {
+			return nil, err
 		}
 	}
 
+	inter.Lbrace = p.input.pos(p.tokenOffset(1))
 	if err = p.match(LBRACE); err != nil {
-		return err
+		return nil, err
 	}
 
-	if err = p.fieldDefinition(); err != nil {
-		return err
+	var fieldDefn *FieldDefinition
+	fieldDefn, err = p.fieldDefinition()
+	if err != nil {
+		return nil, err
 	}
+	inter.FieldDefns = append(inter.FieldDefns, fieldDefn)
 
 	for p.lookAhead(1).Kind != RBRACE {
-		if err = p.fieldDefinition(); err != nil {
-			return err
+		fieldDefn, err = p.fieldDefinition()
+		if err != nil {
+			return nil, err
 		}
+		inter.FieldDefns = append(inter.FieldDefns, fieldDefn)
 	}
 
-	return p.match(RBRACE)
+	inter.Rbrace = p.input.pos(p.tokenOffset(1))
+	return inter, p.match(RBRACE)
 }
 
-func (p *parser) fieldDefinition() error {
+func (p *parser) fieldDefinition() (*FieldDefinition, error) {
+	fieldDefn := &FieldDefinition{}
+
+	fieldDefn.Name = p.lookAhead(1)
+	fieldDefn.NamePos = p.input.pos(p.tokenOffset(1))
 	err := p.match(NAME)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if p.lookAhead(1).Kind == LPAREN {
-		if err = p.argumentsDefinition(); err != nil {
-			return err
+		fieldDefn.ArgDefns, err = p.argumentsDefinition()
+		if err != nil {
+			return nil, err
 		}
 	}
 
+	fieldDefn.Colon = p.input.pos(p.tokenOffset(1))
 	if err = p.match(COLON); err != nil {
-		return err
+		return nil, err
 	}
 
-	if err = p.types(); err != nil {
-		return err
+	fieldDefn.Typ, err = p.types()
+	if err != nil {
+		return nil, err
 	}
 
 	if p.lookAhead(1).Kind == AT {
-		if err = p.directives(); err != nil {
-			return err
+		fieldDefn.Directs, err = p.directives()
+		if err != nil {
+			return nil, err
 		}
 	}
 
-	return nil
+	return fieldDefn, nil
 }
 
-func (p *parser) argumentsDefinition() error {
+func (p *parser) argumentsDefinition() (*ArgumentsDefinition, error) {
+	argsDefn := &ArgumentsDefinition{}
+
+	argsDefn.Lparen = p.input.pos(p.tokenOffset(1))
 	err := p.match(LPAREN)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	if err = p.inputValueDefinition(); err != nil {
-		return err
+	var input *InputValueDefinition
+	input, err = p.inputValueDefinition()
+	if err != nil {
+		return nil, err
 	}
+	argsDefn.InputValDefns = append(argsDefn.InputValDefns, input)
 
 	for p.lookAhead(1).Kind != RPAREN {
-		if err = p.inputValueDefinition(); err != nil {
-			return err
+		input, err = p.inputValueDefinition()
+		if err != nil {
+			return nil, err
 		}
+		argsDefn.InputValDefns = append(argsDefn.InputValDefns, input)
 	}
 
-	return p.match(RPAREN)
+	argsDefn.Rparen = p.input.pos(p.tokenOffset(1))
+	return argsDefn, p.match(RPAREN)
 }
 
-func (p *parser) inputValueDefinition() error {
+func (p *parser) inputValueDefinition() (*InputValueDefinition, error) {
+	input := &InputValueDefinition{}
+
+	input.Name = p.lookAhead(1)
+	input.NamePos = p.input.pos(p.tokenOffset(1))
 	err := p.match(NAME)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
+	input.Colon = p.input.pos(p.tokenOffset(1))
 	if err = p.match(COLON); err != nil {
-		return err
+		return nil, err
 	}
 
-	if err = p.types(); err != nil {
-		return err
+	input.Typ, err = p.types()
+	if err != nil {
+		return nil, err
 	}
 
 	if p.lookAhead(1).Kind == EQL {
-		if err = p.defaultValue(); err != nil {
-			return err
+		input.DeflVal, err = p.defaultValue()
+		if err != nil {
+			return nil, err
 		}
 	}
 
 	if p.lookAhead(1).Kind == AT {
-		if err = p.directives(); err != nil {
-			return err
+		input.Directs, err = p.directives()
+		if err != nil {
+			return nil, err
 		}
 	}
 
-	return nil
+	return input, nil
 }
 
-func (p *parser) scalarDefinition() error {
+func (p *parser) scalarDefinition() (*ScalarDefinition, error) {
+	scalar := &ScalarDefinition{}
+
+	scalar.Scalar = p.input.pos(p.tokenOffset(1))
 	err := p.match(SCALAR)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
+	scalar.Name = p.lookAhead(1)
+	scalar.NamePos = p.input.pos(p.tokenOffset(1))
 	if err = p.match(NAME); err != nil {
-		return err
+		return nil, err
 	}
 
 	if p.lookAhead(1).Kind == AT {
-		if err = p.directives(); err != nil {
-			return err
+		scalar.Directs, err = p.directives()
+		if err != nil {
+			return nil, err
 		}
 	}
-	return nil
+	return scalar, nil
 }
 
-func (p *parser) inputObjectDefinition() error {
+func (p *parser) inputObjectDefinition() (*InputObjectDefinition, error) {
+	input := &InputObjectDefinition{}
+
+	input.Input = p.input.pos(p.tokenOffset(1))
 	err := p.match(INPUT)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
+	input.Name = p.lookAhead(1)
+	input.NamePos = p.input.pos(p.tokenOffset(1))
 	if err = p.match(NAME); err != nil {
-		return err
+		return nil, err
 	}
 
 	if p.lookAhead(1).Kind == AT {
-		if err = p.directives(); err != nil {
-			return err
+		input.Directs, err = p.directives()
+		if err != nil {
+			return nil, err
 		}
 	}
 
+	input.Lbrace = p.input.pos(p.tokenOffset(1))
 	if err = p.match(LBRACE); err != nil {
-		return err
+		return nil, err
 	}
 
-	if err = p.inputValueDefinition(); err != nil {
-		return err
+	var vDefn *InputValueDefinition
+	vDefn, err = p.inputValueDefinition()
+	if err != nil {
+		return nil, err
 	}
+	input.InputValDefns = append(input.InputValDefns, vDefn)
 
 	for p.lookAhead(1).Kind != RBRACE {
-		if err = p.inputValueDefinition(); err != nil {
-			return err
+		vDefn, err = p.inputValueDefinition()
+		if err != nil {
+			return nil, err
 		}
+		input.InputValDefns = append(input.InputValDefns, vDefn)
 	}
 
-	return p.match(RBRACE)
+	input.Rbrace = p.input.pos(p.tokenOffset(1))
+	return input, p.match(RBRACE)
 }
 
-func (p *parser) typeDefinition() error {
+func (p *parser) typeDefinition() (*TypeDefinition, error) {
+	typDefn := &TypeDefinition{}
+
+	typDefn.Typ = p.input.pos(p.tokenOffset(1))
 	err := p.match(TYPE)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
+	typDefn.Name = p.lookAhead(1)
+	typDefn.NamePos = p.input.pos(p.tokenOffset(1))
 	if err = p.match(NAME); err != nil {
-		return err
+		return nil, err
 	}
 
 	if p.lookAhead(1).Text == Stringify(IMPLEMENTS) {
-		if err = p.implementsInterfaces(); err != nil {
-			return err
+		typDefn.Implements, err = p.implementsInterfaces()
+		if err != nil {
+			return nil, err
 		}
 	}
 
 	if p.lookAhead(1).Kind == AT {
-		if err = p.directives(); err != nil {
-			return err
+		typDefn.Directs, err = p.directives()
+		if err != nil {
+			return nil, err
 		}
 	}
 
+	typDefn.Lbrace = p.input.pos(p.tokenOffset(1))
 	if err = p.match(LBRACE); err != nil {
-		return err
+		return nil, err
 	}
 
 	// if err = p.fieldDefinition(); err != nil {
 	// 	return err
 	// }
 
+	var fieldDefn *FieldDefinition
 	for p.lookAhead(1).Kind != RBRACE {
-		if err = p.fieldDefinition(); err != nil {
-			return err
+		fieldDefn, err = p.fieldDefinition()
+		if err != nil {
+			return nil, err
 		}
+		typDefn.FieldDefns = append(typDefn.FieldDefns, fieldDefn)
 	}
-	return p.match(RBRACE)
+
+	typDefn.Rbrace = p.input.pos(p.tokenOffset(1))
+	return typDefn, p.match(RBRACE)
 }
 
-func (p *parser) implementsInterfaces() error {
+func (p *parser) implementsInterfaces() (*ImplementsInterfaces, error) {
+	implement := &ImplementsInterfaces{}
+
+	implement.Implements = p.input.pos(p.tokenOffset(1))
 	err := p.match(IMPLEMENTS)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	if err = p.match(NAME); err != nil {
-		return err
+	var namedTyp *NamedType
+	namedTyp, err = p.namedType()
+	if err != nil {
+		return nil, err
 	}
+	implement.NamedTyps = append(implement.NamedTyps, namedTyp)
 
 	for p.lookAhead(1).Kind == NAME {
-		if err = p.match(NAME); err != nil {
-			return err
+		namedTyp, err = p.namedType()
+		if err != nil {
+			return nil, err
 		}
+		implement.NamedTyps = append(implement.NamedTyps, namedTyp)
 	}
 
-	return nil
+	return implement, nil
 }
 
-func (p *parser) extendDefinition() error {
+func (p *parser) extendDefinition() (*ExtendDefinition, error) {
+	e := &ExtendDefinition{}
+
+	e.Extend = p.input.pos(p.tokenOffset(1))
 	err := p.match(EXTEND)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return p.typeDefinition()
+	e.TypDefn, err = p.typeDefinition()
+	if err != nil {
+		return nil, err
+	}
+
+	return e, nil
 }
 
-func (p *parser) directiveDefinition() error {
+func (p *parser) directiveDefinition() (*DirectiveDefinition, error) {
+	d := &DirectiveDefinition{}
+
+	d.Direct = p.input.pos(p.tokenOffset(1))
 	err := p.match(DIRECTIVE)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
+	d.At = p.input.pos(p.tokenOffset(1))
 	if err = p.match(AT); err != nil {
-		return err
+		return nil, err
 	}
 
+	d.Name = p.lookAhead(1)
+	d.NamePos = p.input.pos(p.tokenOffset(1))
 	if err = p.match(NAME); err != nil {
-		return err
+		return nil, err
 	}
 
 	if p.lookAhead(1).Kind == LPAREN {
-		if err = p.argumentsDefinition(); err != nil {
-			return err
+		d.Args, err = p.argumentsDefinition()
+		if err != nil {
+			return nil, err
 		}
 	}
 
+	d.On = p.input.pos(p.tokenOffset(1))
 	if err = p.match(ON); err != nil {
-		return err
+		return nil, err
 	}
 
-	return p.directiveLocations()
-}
-
-func (p *parser) directiveLocations() error {
-	err := p.directiveLocation()
+	d.Locs, err = p.directiveLocations()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
+	return d, nil
+}
+
+func (p *parser) directiveLocations() (*DirectiveLocations, error) {
+	loc := &DirectiveLocations{}
+
+	loc.Name = p.lookAhead(1)
+	loc.NamePos = p.input.pos(p.tokenOffset(1))
+	err := p.match(NAME)
+	if err != nil {
+		return nil, err
+	}
+
+	var l *DirectiveLocation
 	for p.lookAhead(1).Kind == PIPE {
-		if err = p.match(PIPE); err != nil {
-			return err
+		l, err = p.directiveLocation()
+		if err != nil {
+			return nil, err
 		}
-		if err = p.directiveLocation(); err != nil {
-			return err
-		}
+		loc.Locs = append(loc.Locs, l)
 	}
 
-	return nil
+	return loc, nil
 }
 
-func (p *parser) directiveLocation() error {
-	return p.match(NAME)
+func (p *parser) directiveLocation() (*DirectiveLocation, error) {
+	var err error
+	loc := &DirectiveLocation{}
+	loc.Pipe = p.input.pos(p.tokenOffset(1))
+	if err = p.match(PIPE); err != nil {
+		return nil, err
+	}
+
+	loc.Name = p.lookAhead(1)
+	loc.NamePos = p.input.pos(p.tokenOffset(1))
+	if err = p.match(NAME); err != nil {
+		return nil, err
+	}
+
+	return loc, nil
 }
 
-func (p *parser) schemaDefinition() error {
+func (p *parser) schemaDefinition() (*SchemaDefinition, error) {
+	schemaDefn := &SchemaDefinition{}
+
+	schemaDefn.Schema = p.input.pos(p.tokenOffset(1))
 	err := p.match(SCHEMA)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if p.lookAhead(1).Kind == AT {
-		if err = p.directives(); err != nil {
-			return err
+		schemaDefn.Directs, err = p.directives()
+		if err != nil {
+			return nil, err
 		}
 	}
 
+	schemaDefn.Lbrace = p.input.pos(p.tokenOffset(1))
 	if err = p.match(LBRACE); err != nil {
-		return err
+		return nil, err
 	}
 
-	if err = p.operationTypeDefinition(); err != nil {
-		return err
+	var oper *OperationTypeDefinition
+	oper, err = p.operationTypeDefinition()
+	if err != nil {
+		return nil, err
 	}
+	schemaDefn.OperDefns = append(schemaDefn.OperDefns, oper)
 
 	for p.lookAhead(1).Kind != RBRACE {
-		if err = p.operationTypeDefinition(); err != nil {
-			return err
+		oper, err = p.operationTypeDefinition()
+		if err != nil {
+			return nil, err
 		}
+		schemaDefn.OperDefns = append(schemaDefn.OperDefns, oper)
 	}
 
-	return p.match(RBRACE)
+	schemaDefn.Rbrace = p.input.pos(p.tokenOffset(1))
+	return schemaDefn, p.match(RBRACE)
 }
 
-func (p *parser) operationTypeDefinition() error {
+func (p *parser) operationTypeDefinition() (*OperationTypeDefinition, error) {
 	var err error
+	oper := &OperationTypeDefinition{}
+
+	oper.OperType = p.lookAhead(1)
+	oper.OperPos = p.input.pos(p.tokenOffset(1))
 	if err = p.match(QUERY); err != nil {
 		if err = p.match(MUTATION); err != nil {
 			if err = p.match(SUBSCRIPTION); err != nil {
@@ -1044,89 +1410,138 @@ func (p *parser) operationTypeDefinition() error {
 					Stringify(QUERY),
 					Stringify(MUTATION),
 					Stringify(SUBSCRIPTION))
-				return p.parseError(expect)
+				return nil, p.parseError(expect)
 			}
 		}
 	}
 
-	if err := p.match(COLON); err != nil {
-		return err
+	oper.Colon = p.input.pos(p.tokenOffset(1))
+	if err = p.match(COLON); err != nil {
+		return nil, err
 	}
 
-	return p.match(NAME)
+	oper.NamedTyp, err = p.namedType()
+	if err != nil {
+		return nil, err
+	}
+	return oper, nil
 }
 
-func (p *parser) enumDefinition() error {
+func (p *parser) enumDefinition() (*EnumDefinition, error) {
+	e := &EnumDefinition{}
+
+	e.Enum = p.input.pos(p.tokenOffset(1))
 	err := p.match(ENUM)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
+	e.Name = p.lookAhead(1)
+	e.NamePos = p.input.pos(p.tokenOffset(1))
 	if err = p.match(NAME); err != nil {
-		return err
+		return nil, err
 	}
 
 	if p.lookAhead(1).Kind == AT {
-		if err = p.directives(); err != nil {
-			return err
+		e.Directs, err = p.directives()
+		if err != nil {
+			return nil, err
 		}
 	}
 
+	e.Lbrace = p.input.pos(p.tokenOffset(1))
 	if err = p.match(LBRACE); err != nil {
-		return err
+		return nil, err
 	}
 
-	if err = p.enumValue(); err != nil {
-		return err
+	var ev *EnumValue
+	ev, err = p.enumValue()
+	if err != nil {
+		return nil, err
 	}
+	e.EnumVals = append(e.EnumVals, ev)
 
 	for p.lookAhead(1).Kind != RBRACE {
-		if err = p.enumValue(); err != nil {
-			return err
+		ev, err = p.enumValue()
+		if err != nil {
+			return nil, err
 		}
+		e.EnumVals = append(e.EnumVals, ev)
 	}
 
-	return p.match(RBRACE)
+	e.Rbrace = p.input.pos(p.tokenOffset(1))
+	return e, p.match(RBRACE)
 }
 
-func (p *parser) unionDefinition() error {
+func (p *parser) unionDefinition() (*UnionDefinition, error) {
+	defn := &UnionDefinition{}
+
+	defn.Union = p.input.pos(p.tokenOffset(1))
 	err := p.match(UNION)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
+	defn.Name = p.lookAhead(1)
+	defn.NamePos = p.input.pos(p.tokenOffset(1))
 	if err = p.match(NAME); err != nil {
-		return err
+		return nil, err
 	}
 
 	if p.lookAhead(1).Kind == AT {
-		if err = p.directives(); err != nil {
-			return err
+		defn.Directs, err = p.directives()
+		if err != nil {
+			return nil, err
 		}
 	}
 
+	defn.Eq = p.input.pos(p.tokenOffset(1))
 	if err = p.match(EQL); err != nil {
-		return err
+		return nil, err
 	}
 
-	return p.unionMembers()
+	defn.Members, err = p.unionMembers()
+	if err != nil {
+		return nil, err
+	}
+	return defn, nil
 }
 
-func (p *parser) unionMembers() error {
-	err := p.match(NAME)
+func (p *parser) unionMembers() (*UnionMembers, error) {
+	um := &UnionMembers{}
+
+	namedTyp, err := p.namedType()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
+	um.NamedTyp = namedTyp
+
+	var u *UnionMember
 	for p.lookAhead(1).Kind == PIPE {
-		if err = p.match(PIPE); err != nil {
-			return err
+		u, err = p.unionMember()
+		if err != nil {
+			return nil, err
 		}
-
-		if err = p.match(NAME); err != nil {
-			return err
-		}
+		um.Members = append(um.Members, u)
 	}
 
-	return nil
+	return um, nil
+}
+
+func (p *parser) unionMember() (*UnionMember, error) {
+	var err error
+	u := &UnionMember{}
+
+	u.Pipe = p.input.pos(p.tokenOffset(1))
+	if err = p.match(PIPE); err != nil {
+		return nil, err
+	}
+
+	u.NamedTyp, err = p.namedType()
+	if err != nil {
+		return nil, err
+	}
+
+	return u, nil
 }
