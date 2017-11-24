@@ -796,7 +796,7 @@ func (p *parser) objectValue() (*ObjectValue, error) {
 		return objVal, p.match(RBRACE)
 	}
 
-	objField := &ObjectField{}
+	var objField *ObjectField
 	objField, err = p.objectField()
 	if err != nil {
 		return nil, err
