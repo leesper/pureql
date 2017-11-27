@@ -45,6 +45,16 @@ type Document struct {
 	Defs []Definition
 }
 
+// Pos returns position of first character belong to the node
+func (d *Document) Pos() token.Pos {
+	return d.Defs[0].Pos()
+}
+
+// End returns position of first character immediately after the node
+func (d *Document) End() token.Pos {
+	return d.Defs[len(d.Defs)-1].End()
+}
+
 // Definition related-----------------------------------------------------------
 
 // OperationDefinition node
@@ -789,26 +799,6 @@ func (s *SchemaDefinition) Pos() token.Pos {
 // End returns position of first character immediately after the node
 func (s *SchemaDefinition) End() token.Pos {
 	return token.Pos(int(s.Rbrace) + 1)
-}
-
-// EnumValueDefinition node
-type EnumValueDefinition struct {
-	Name    Token
-	NamePos token.Pos
-	Directs *Directives
-}
-
-// Pos returns position of first character belong to the node
-func (e *EnumValueDefinition) Pos() token.Pos {
-	return e.NamePos
-}
-
-// End returns position of first character immediately after the node
-func (e *EnumValueDefinition) End() token.Pos {
-	if e.Directs != nil {
-		return e.Directs.End()
-	}
-	return token.Pos(int(e.NamePos) + len(e.Name.Text))
 }
 
 // OperationTypeDefinition node
