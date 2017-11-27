@@ -40,14 +40,6 @@ type Type interface {
 	typeNode()
 }
 
-// Schema is the interface for all schema node types:
-// InterfaceDefinition, ScalarDefinition, InputObjectDefinition TypeDefinition,
-// ExtendDefinition, DirectiveDefinition, SchemaDefinition, EnumDefinition, UnionDefinition
-type Schema interface {
-	Node
-	schemaNode()
-}
-
 // Document node
 type Document struct {
 	Defs []Definition
@@ -235,28 +227,6 @@ func (n *NameValue) End() token.Pos {
 }
 
 func (n *NameValue) valueNode() {}
-
-// EnumValue node
-type EnumValue struct {
-	Name    Token
-	NamePos token.Pos
-	Directs *Directives
-}
-
-// Pos returns position of first character belong to the node
-func (e *EnumValue) Pos() token.Pos {
-	return e.NamePos
-}
-
-// End returns position of first character immediately after the node
-func (e *EnumValue) End() token.Pos {
-	if e.Directs != nil {
-		return e.Directs.End()
-	}
-	return token.Pos(int(e.NamePos) + len(e.Name.Text))
-}
-
-func (e *EnumValue) valueNode() {}
 
 // ListValue node
 type ListValue struct {
@@ -537,6 +507,30 @@ func (d *Directive) End() token.Pos {
 
 // Schema related---------------------------------------------------------------
 
+// Schema node contains all definition nodes
+type Schema struct {
+	Interfaces   []*InterfaceDefinition
+	Scalars      []*ScalarDefinition
+	InputObjects []*InputObjectDefinition
+	Types        []*TypeDefinition
+	Extends      []*ExtendDefinition
+	Directives   []*DirectiveDefinition
+	Schemas      []*SchemaDefinition
+	Enums        []*EnumDefinition
+	Unions       []*UnionDefinition
+	pos, end     token.Pos
+}
+
+// Pos returns position of first character belong to the node
+func (s *Schema) Pos() token.Pos {
+	return s.pos
+}
+
+// End returns position of first character immediately after the node
+func (s *Schema) End() token.Pos {
+	return token.Pos(int(s.end) + 1)
+}
+
 // InterfaceDefinition node
 type InterfaceDefinition struct {
 	Interface  token.Pos
@@ -557,8 +551,6 @@ func (i *InterfaceDefinition) Pos() token.Pos {
 func (i *InterfaceDefinition) End() token.Pos {
 	return token.Pos(int(i.Rbrace) + 1)
 }
-
-func (i *InterfaceDefinition) schemaNode() {}
 
 // FieldDefinition node
 type FieldDefinition struct {
@@ -647,8 +639,6 @@ func (s *ScalarDefinition) End() token.Pos {
 	return token.Pos(int(s.NamePos) + 1)
 }
 
-func (s *ScalarDefinition) schemaNode() {}
-
 // InputObjectDefinition node
 type InputObjectDefinition struct {
 	Input         token.Pos
@@ -669,8 +659,6 @@ func (i *InputObjectDefinition) Pos() token.Pos {
 func (i *InputObjectDefinition) End() token.Pos {
 	return token.Pos(int(i.Rbrace) + 1)
 }
-
-func (i *InputObjectDefinition) schemaNode() {}
 
 // TypeDefinition node
 type TypeDefinition struct {
@@ -693,8 +681,6 @@ func (t *TypeDefinition) Pos() token.Pos {
 func (t *TypeDefinition) End() token.Pos {
 	return token.Pos(int(t.Rbrace) + 1)
 }
-
-func (t *TypeDefinition) schemaNode() {}
 
 // ImplementsInterfaces node
 type ImplementsInterfaces struct {
@@ -728,8 +714,6 @@ func (e *ExtendDefinition) End() token.Pos {
 	return e.TypDefn.End()
 }
 
-func (e *ExtendDefinition) schemaNode() {}
-
 //DirectiveDefinition node
 type DirectiveDefinition struct {
 	Direct  token.Pos
@@ -750,8 +734,6 @@ func (d *DirectiveDefinition) Pos() token.Pos {
 func (d *DirectiveDefinition) End() token.Pos {
 	return d.Locs.End()
 }
-
-func (d *DirectiveDefinition) schemaNode() {}
 
 // DirectiveLocations node
 type DirectiveLocations struct {
@@ -809,7 +791,25 @@ func (s *SchemaDefinition) End() token.Pos {
 	return token.Pos(int(s.Rbrace) + 1)
 }
 
-func (s *SchemaDefinition) schemaNode() {}
+// EnumValueDefinition node
+type EnumValueDefinition struct {
+	Name    Token
+	NamePos token.Pos
+	Directs *Directives
+}
+
+// Pos returns position of first character belong to the node
+func (e *EnumValueDefinition) Pos() token.Pos {
+	return e.NamePos
+}
+
+// End returns position of first character immediately after the node
+func (e *EnumValueDefinition) End() token.Pos {
+	if e.Directs != nil {
+		return e.Directs.End()
+	}
+	return token.Pos(int(e.NamePos) + len(e.Name.Text))
+}
 
 // OperationTypeDefinition node
 type OperationTypeDefinition struct {
@@ -850,22 +850,20 @@ func (e *EnumDefinition) End() token.Pos {
 	return token.Pos(int(e.Rbrace) + 1)
 }
 
-func (e *EnumDefinition) schemaNode() {}
-
-// EnumValueDefinition node
-type EnumValueDefinition struct {
+// EnumValue node
+type EnumValue struct {
 	Name    Token
 	NamePos token.Pos
 	Directs *Directives
 }
 
 // Pos returns position of first character belong to the node
-func (e *EnumValueDefinition) Pos() token.Pos {
+func (e *EnumValue) Pos() token.Pos {
 	return e.NamePos
 }
 
 // End returns position of first character immediately after the node
-func (e *EnumValueDefinition) End() token.Pos {
+func (e *EnumValue) End() token.Pos {
 	if e.Directs != nil {
 		return e.Directs.End()
 	}
@@ -891,8 +889,6 @@ func (u *UnionDefinition) Pos() token.Pos {
 func (u *UnionDefinition) End() token.Pos {
 	return u.Members.End()
 }
-
-func (u *UnionDefinition) schemaNode() {}
 
 // UnionMembers node
 type UnionMembers struct {

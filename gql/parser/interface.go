@@ -23,7 +23,7 @@ func ParseDocument(document []byte) (*Document, error) {
 }
 
 // ParseSchema returns ast.Schema.
-func ParseSchema(schema []byte) (Schema, error) {
+func ParseSchema(schema []byte) (*Schema, error) {
 	// schema = []byte(strings.TrimRight(string(schema), "\n\t\r "))
 	return newParser(schema, "").parseSchema()
 }

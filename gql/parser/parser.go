@@ -68,7 +68,7 @@ func (p *parser) definition() (Definition, error) {
 	return p.operationDefinition()
 }
 
-func (p *parser) parseSchema() (Schema, error) {
+func (p *parser) parseSchema() (*Schema, error) {
 	if p == nil {
 		return nil, errors.New("parser nil")
 	}
@@ -87,27 +87,80 @@ func (p *parser) parseSchema() (Schema, error) {
 	return schema, nil
 }
 
-func (p *parser) schema() (Schema, error) {
-	switch p.lookAhead(1).Text {
-	case Stringify(INTERFACE):
-		return p.interfaceDefinition()
-	case Stringify(SCALAR):
-		return p.scalarDefinition()
-	case Stringify(INPUT):
-		return p.inputObjectDefinition()
-	case Stringify(TYPE):
-		return p.typeDefinition()
-	case Stringify(EXTEND):
-		return p.extendDefinition()
-	case Stringify(DIRECTIVE):
-		return p.directiveDefinition()
-	case Stringify(SCHEMA):
-		return p.schemaDefinition()
-	case Stringify(ENUM):
-		return p.enumDefinition()
-	default:
-		return p.unionDefinition()
+func (p *parser) schema() (*Schema, error) {
+	s := &Schema{}
+	var node, first, last Node
+	var err error
+	isFirst := true
+	for p.lookAhead(1) != TokenEOF {
+		switch p.lookAhead(1).Text {
+		case Stringify(INTERFACE):
+			node, err = p.interfaceDefinition()
+			if err != nil {
+				return nil, err
+			}
+			s.Interfaces = append(s.Interfaces, node.(*InterfaceDefinition))
+		case Stringify(SCALAR):
+			node, err = p.scalarDefinition()
+			if err != nil {
+				return nil, err
+			}
+			s.Scalars = append(s.Scalars, node.(*ScalarDefinition))
+		case Stringify(INPUT):
+			node, err = p.inputObjectDefinition()
+			if err != nil {
+				return nil, err
+			}
+			s.InputObjects = append(s.InputObjects, node.(*InputObjectDefinition))
+		case Stringify(TYPE):
+			node, err = p.typeDefinition()
+			if err != nil {
+				return nil, err
+			}
+			s.Types = append(s.Types, node.(*TypeDefinition))
+		case Stringify(EXTEND):
+			node, err = p.extendDefinition()
+			if err != nil {
+				return nil, err
+			}
+			s.Extends = append(s.Extends, node.(*ExtendDefinition))
+		case Stringify(DIRECTIVE):
+			node, err = p.directiveDefinition()
+			if err != nil {
+				return nil, err
+			}
+			s.Directives = append(s.Directives, node.(*DirectiveDefinition))
+		case Stringify(SCHEMA):
+			node, err = p.schemaDefinition()
+			if err != nil {
+				return nil, err
+			}
+			s.Schemas = append(s.Schemas, node.(*SchemaDefinition))
+		case Stringify(ENUM):
+			node, err = p.enumDefinition()
+			if err != nil {
+				return nil, err
+			}
+			s.Enums = append(s.Enums, node.(*EnumDefinition))
+		default:
+			node, err = p.unionDefinition()
+			if err != nil {
+				return nil, err
+			}
+			s.Unions = append(s.Unions, node.(*UnionDefinition))
+		}
+
+		// keep recording the last node seen
+		last = node
+
+		if isFirst {
+			isFirst = false
+			first = node
+		}
 	}
+
+	s.pos, s.end = first.Pos(), last.End()
+	return s, nil
 }
 
 func (p *parser) operationDefinition() (*OperationDefinition, error) {
@@ -313,13 +366,7 @@ func (p *parser) valueConst() (Value, error) {
 		}
 		return val, p.match(p.lookAhead(1).Kind)
 	case NAME:
-		text := p.lookAhead(1).Text
-		if text == "true" || text == "false" {
-			return p.booleanValue()
-		} else if text == "null" {
-			return p.nullValue()
-		}
-		return p.enumValue()
+		return p.nameValue()
 	case LBRACK:
 		return p.listValueConst()
 	case LBRACE:
@@ -667,13 +714,7 @@ func (p *parser) value() (Value, error) {
 		}
 		return val, p.match(p.lookAhead(1).Kind)
 	case NAME:
-		text := p.lookAhead(1).Text
-		if text == "true" || text == "false" {
-			return p.booleanValue()
-		} else if text == "null" {
-			return p.nullValue()
-		}
-		return p.enumValue()
+		return p.nameValue()
 	case DOLLAR:
 		return p.variable()
 	case LBRACK:
@@ -712,15 +753,7 @@ func (p *parser) variable() (*Variable, error) {
 	return variable, nil
 }
 
-func (p *parser) booleanValue() (*NameValue, error) {
-	val := &NameValue{
-		Val:    p.lookAhead(1),
-		ValPos: p.input.pos(p.tokenOffset(1)),
-	}
-	return val, p.match(NAME)
-}
-
-func (p *parser) nullValue() (*NameValue, error) {
+func (p *parser) nameValue() (*NameValue, error) {
 	val := &NameValue{
 		Val:    p.lookAhead(1),
 		ValPos: p.input.pos(p.tokenOffset(1)),
