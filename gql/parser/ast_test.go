@@ -126,9 +126,16 @@ Type2!
 	assertEqual(t, "5:11", fset.Position(nt.End()).String())
 	assertTrue(t, nt.NonNull)
 	assertEqual(t, "Type5", nt.Name.Text)
+
+	_, err = p.types()
+	if err == nil {
+		t.Error("should return err")
+	}
 }
 
-func TestVariableDefinitions(t *testing.T)     {}
+func TestVariableDefinitions(t *testing.T) {
+	// varDefns := `($episode: Episode = "JEDI", $withFriends: Boolean!, $ep: Episode!, $review: ReviewInput!)`
+}
 func TestValues(t *testing.T)                  {}
 func TestFragmentDefinition(t *testing.T)      {}
 func TestSelectionSet(t *testing.T)            {}
