@@ -11,24 +11,21 @@ type parser struct {
 	input        *lexer
 	lookAheads   []Token // LL(2), look two tokens ahead
 	tokenOffsets []int   // corresponding offset of two tokens
-	set          *token.FileSet
 	curr         int
 }
 
-func newParser(source []byte, filename string) *parser {
+func newParser(source []byte, filename string, fset *token.FileSet) *parser {
 	if source == nil {
 		return nil
 	}
 
-	s := token.NewFileSet()
-	f := s.AddFile(filename, -1, len(source))
+	f := fset.AddFile(filename, -1, len(source))
 	l := newLexer(source, f)
 
 	p := &parser{
 		input:        l,
 		lookAheads:   make([]Token, 2),
 		tokenOffsets: make([]int, 2),
-		set:          s,
 	}
 
 	for i := 0; i < 2; i++ {

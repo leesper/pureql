@@ -453,7 +453,7 @@ func (n *NamedType) End() token.Pos {
 	if n.NonNull {
 		return token.Pos(int(n.BangPos) + 1)
 	}
-	return token.Pos(int(n.NamePos) + 1)
+	return token.Pos(int(n.NamePos) + len(n.Name.Text))
 }
 
 func (n *NamedType) typeNode() {}
@@ -512,7 +512,10 @@ func (d *Directive) Pos() token.Pos {
 
 // End returns position of first character immediately after the node
 func (d *Directive) End() token.Pos {
-	return d.Args.End()
+	if d.Args != nil {
+		return d.Args.End()
+	}
+	return token.Pos(int(d.NamePos) + len(d.Name.Text))
 }
 
 // Schema related---------------------------------------------------------------

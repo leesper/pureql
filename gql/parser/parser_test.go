@@ -2,23 +2,24 @@ package parser
 
 import (
 	"fmt"
+	"go/token"
 	"testing"
 )
 
 func TestInvalidLexerOrK(t *testing.T) {
-	if newParser(nil, "") != nil {
+	if newParser(nil, "", token.NewFileSet()) != nil {
 		t.Error("should return nil")
 	}
 
-	if newParser([]byte("foobar"), "") == nil {
+	if newParser([]byte("foobar"), "", token.NewFileSet()) == nil {
 		t.Error("should not return nil")
 	}
 
-	if _, err := newParser(nil, "").parseDocument(); err == nil {
+	if _, err := newParser(nil, "", token.NewFileSet()).parseDocument(); err == nil {
 		t.Error("should return error")
 	}
 
-	if _, err := newParser(nil, "").parseSchema(); err == nil {
+	if _, err := newParser(nil, "", token.NewFileSet()).parseSchema(); err == nil {
 		t.Error("should return error")
 	}
 }
@@ -29,7 +30,7 @@ query ф {
 	me {
 		id
 	}
-}`))
+}`), "", token.NewFileSet())
 
 	if err.Error() != "2:8: expecting {, found 'ф'" {
 		t.Error(err)
@@ -42,7 +43,7 @@ query _ {
 	me {
 		id
 	}
-}`))
+}`), "", token.NewFileSet())
 
 	if err != nil {
 		t.Error(err)
@@ -50,14 +51,14 @@ query _ {
 }
 
 func TestQueryShorthand(t *testing.T) {
-	_, err := ParseDocument([]byte("{ field }"))
+	_, err := ParseDocument([]byte("{ field }"), "", token.NewFileSet())
 	if err != nil {
 		t.Error(err)
 	}
 }
 
 func TestParseInvalids(t *testing.T) {
-	_, err := ParseDocument([]byte("{"))
+	_, err := ParseDocument([]byte("{"), "", token.NewFileSet())
 	if err == nil {
 		t.Errorf("expecting error, found nil")
 	}
@@ -69,7 +70,7 @@ func TestParseInvalids(t *testing.T) {
 	_, err = ParseDocument([]byte(`
 { ...MissingOn }
 fragment MissingOn Type
-`))
+`), "", token.NewFileSet())
 	if err == nil {
 		t.Error("expecting error, found nil")
 	}
@@ -78,7 +79,7 @@ fragment MissingOn Type
 		t.Errorf("expecting %s, found %s", expecting, err)
 	}
 
-	_, err = ParseDocument([]byte(`{ field: {} }`))
+	_, err = ParseDocument([]byte(`{ field: {} }`), "", token.NewFileSet())
 	if err == nil {
 		t.Error("expecting error, found nil")
 	}
@@ -87,7 +88,7 @@ fragment MissingOn Type
 		t.Errorf("expecting %s, found %s", expecting, err)
 	}
 
-	_, err = ParseDocument([]byte(`notAnOper Foo { field }`))
+	_, err = ParseDocument([]byte(`notAnOper Foo { field }`), "", token.NewFileSet())
 	if err == nil {
 		t.Error("expecting error, found nil")
 	}
@@ -96,7 +97,7 @@ fragment MissingOn Type
 		t.Errorf("expecting %s, found %s", expecting, err)
 	}
 
-	_, err = ParseDocument([]byte(`...`))
+	_, err = ParseDocument([]byte(`...`), "", token.NewFileSet())
 	if err == nil {
 		t.Error("expecting error, found nil")
 	}
@@ -105,7 +106,7 @@ fragment MissingOn Type
 		t.Errorf("expecting %s, found %s", expecting, err)
 	}
 
-	_, err = ParseDocument([]byte("query"))
+	_, err = ParseDocument([]byte("query"), "", token.NewFileSet())
 	if err == nil {
 		t.Error("expecting error, found nil")
 	}
@@ -116,21 +117,21 @@ fragment MissingOn Type
 }
 
 func TestParseVariableInline(t *testing.T) {
-	_, err := ParseDocument([]byte(`{ field(complex: { a: { b: [ $var ] } }) }`))
+	_, err := ParseDocument([]byte(`{ field(complex: { a: { b: [ $var ] } }) }`), "", token.NewFileSet())
 	if err != nil {
 		t.Error("unexpected error", err)
 	}
 }
 
 func TestParseDefaultValues(t *testing.T) {
-	_, err := ParseDocument([]byte(`query Foo($x: Complex = { a: { b: [ true ] } }) { field }`))
+	_, err := ParseDocument([]byte(`query Foo($x: Complex = { a: { b: [ true ] } }) { field }`), "", token.NewFileSet())
 	if err != nil {
 		t.Error("unexpected error", err)
 	}
 }
 
 func TestParseInvalidUseOn(t *testing.T) {
-	_, err := ParseDocument([]byte(`fragment on on on { on }`))
+	_, err := ParseDocument([]byte(`fragment on on on { on }`), "", token.NewFileSet())
 	if err == nil {
 		t.Error("should return error")
 	}
@@ -141,7 +142,7 @@ func TestParseInvalidUseOn(t *testing.T) {
 }
 
 func TestParseInvalidSpreadOfOn(t *testing.T) {
-	_, err := ParseDocument([]byte(`{ ...on }`))
+	_, err := ParseDocument([]byte(`{ ...on }`), "", token.NewFileSet())
 	if err == nil {
 		t.Error("should return error")
 	}
@@ -152,7 +153,7 @@ func TestParseInvalidSpreadOfOn(t *testing.T) {
 }
 
 func TestParseNullMisuse(t *testing.T) {
-	_, err := ParseDocument([]byte(`{ fieldWithNullableStringInput(input: null) }`))
+	_, err := ParseDocument([]byte(`{ fieldWithNullableStringInput(input: null) }`), "", token.NewFileSet())
 	if err != nil {
 		t.Error("unexpected error", err)
 	}
@@ -163,7 +164,7 @@ func TestParseQueryWithComment(t *testing.T) {
 # This comment has a \u0A0A multi-byte character.
 {
 	field(arg: "Has a \u0A0A multi-byte character.")
-}`))
+}`), "", token.NewFileSet())
 	if err != nil {
 		t.Error("unexpected error", err)
 	}
@@ -172,7 +173,7 @@ func TestParseQueryWithComment(t *testing.T) {
 func TestParseQueryWithUnicode(t *testing.T) {
 	_, err := ParseDocument([]byte(`
 # This comment has a фы世界 multi-byte character.
-{ field(arg: "Has a фы世界 multi-byte character.") }`))
+{ field(arg: "Has a фы世界 multi-byte character.") }`), "", token.NewFileSet())
 	if err != nil {
 		t.Error("unexpected error", err)
 	}
@@ -233,7 +234,7 @@ fragment frag on Friend {
 {
   unnamed(truthy: true, falsey: false, nullish: null),
   query
-}`))
+}`), "", token.NewFileSet())
 	if err != nil {
 		t.Error("unexpected error", err)
 	}
@@ -263,7 +264,7 @@ fragment %v on Type {
 	%v(%v: $%v) @%v(%v: $%v)
 }`, nonKeyword, fragmentName, nonKeyword, fragmentName, nonKeyword, nonKeyword,
 			nonKeyword, nonKeyword, nonKeyword, nonKeyword)
-		_, err := ParseDocument([]byte(query))
+		_, err := ParseDocument([]byte(query), "", token.NewFileSet())
 		if err != nil {
 			t.Error("unexpected error", err, query)
 		}
@@ -274,7 +275,7 @@ func TestParseSubscription(t *testing.T) {
 	_, err := ParseDocument([]byte(`
 subscription Foo {
   subscriptionField
-}`))
+}`), "", token.NewFileSet())
 	if err != nil {
 		t.Error("unexpected error", err)
 	}
@@ -284,7 +285,7 @@ func TestParseUnnamedSubscription(t *testing.T) {
 	_, err := ParseDocument([]byte(`
 subscription {
   subscriptionField
-}`))
+}`), "", token.NewFileSet())
 	if err != nil {
 		t.Error("unexpected error", err)
 	}
@@ -294,7 +295,7 @@ func TestParseMutation(t *testing.T) {
 	_, err := ParseDocument([]byte(`
 mutation Foo {
   mutationField
-}`))
+}`), "", token.NewFileSet())
 	if err != nil {
 		t.Error("unexpected error", err)
 	}
@@ -304,7 +305,7 @@ func TestParseUnnamedMutation(t *testing.T) {
 	_, err := ParseDocument([]byte(`
 mutation {
   mutationField
-}`))
+}`), "", token.NewFileSet())
 	if err != nil {
 		t.Error("unexpected error", err)
 	}
@@ -320,7 +321,7 @@ type Character {
 notSchema {
 	foo: bar
 }
-`))
+`), "", token.NewFileSet())
 	if err == nil {
 		t.Error("should return error")
 	}
@@ -329,7 +330,7 @@ notSchema {
 notSchema {
 	foo: bar
 }
-`))
+`), "", token.NewFileSet())
 
 	if err == nil {
 		t.Error("should return error")
@@ -418,7 +419,7 @@ directive @include(if: Boolean!)
 directive @include2(if: Boolean!) on
   FIELD
   | FRAGMENT_SPREAD
-  | INLINE_FRAGMENT`))
+  | INLINE_FRAGMENT`), "", token.NewFileSet())
 
 	if err != nil {
 		t.Error("unexpected error", err)
