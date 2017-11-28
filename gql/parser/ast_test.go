@@ -357,7 +357,32 @@ func TestValues(t *testing.T) {
 		assertTrue(t, v.(*ObjectValue).ObjFields[1].Val.(*LiteralValue).Val.Kind == FLOAT)
 	}
 }
-func TestConstValues(t *testing.T)             {}
+
+func TestConstValues(t *testing.T) {
+	values := `[ [] ] {  } { a: 1, b: 2 }`
+	fset := token.NewFileSet()
+	p := newParser([]byte(values), "", fset)
+
+	val, err := p.valueConst()
+	if err != nil {
+		t.Error("unexpected error", err)
+	}
+	assertTrue(t, len(val.(*ListValue).Vals) == 1)
+	inner := val.(*ListValue).Vals[0].(*ListValue)
+	assertTrue(t, len(inner.Vals) == 0)
+
+	val, err = p.valueConst()
+	if err != nil {
+		t.Error("unexpected error", err)
+	}
+	assertTrue(t, len(val.(*ObjectValue).ObjFields) == 0)
+
+	val, err = p.valueConst()
+	if err != nil {
+		t.Error("unexpected error", err)
+	}
+	assertTrue(t, len(val.(*ObjectValue).ObjFields) == 2)
+}
 func TestFragmentDefinition(t *testing.T)      {}
 func TestSelectionSet(t *testing.T)            {}
 func TestOperationDefinition(t *testing.T)     {}
