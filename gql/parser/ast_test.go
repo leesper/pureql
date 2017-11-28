@@ -3,12 +3,13 @@ package parser
 import (
 	"fmt"
 	"go/token"
+	"reflect"
 	"testing"
 )
 
-func assertEqual(t *testing.T, expected, found string) {
-	if expected != found {
-		t.Errorf("expected %s, found %s", expected, found)
+func assertEqual(t *testing.T, expected, found interface{}) {
+	if !reflect.DeepEqual(expected, found) {
+		t.Errorf("expected %#v, found %#v", expected, found)
 	}
 }
 
@@ -187,7 +188,176 @@ func TestVariableDefinitions(t *testing.T) {
 	assertTrue(t, review.Typ.(*NamedType).NonNull)
 }
 
-func TestValues(t *testing.T)                  {}
+func TestValues(t *testing.T) {
+	values := `$variable
+10225406 3.1415926 "Golang" true false null MALE FEMALE
+[] [ 123 true 2.3E-10 $gender]
+{} { name: "Hello world", score: 1.0 job: $job}
+{search: [
+      {
+        name: "Han Solo",
+        height: 1.8
+      },
+      {
+        name: "Leia Organa",
+        height: 1.5
+      },
+      {
+        name: "TIE Advanced x1",
+        length: 9.2
+      }
+		]
+}`
+	fset := token.NewFileSet()
+	fname := "value.graphql"
+	p := newParser([]byte(values), fname, fset)
+	val, err := p.value()
+	if err != nil {
+		t.Error("unexpected error", err)
+	}
+	assertEqual(t, fmt.Sprintf("%s:1:1", fname), fset.Position(val.Pos()).String())
+	assertEqual(t, fmt.Sprintf("%s:1:10", fname), fset.Position(val.End()).String())
+	assertEqual(t, "variable", val.(*Variable).Name.Text)
+
+	val, err = p.value()
+	if err != nil {
+		t.Error("unexpected error", err)
+	}
+	assertEqual(t, fmt.Sprintf("%s:2:1", fname), fset.Position(val.Pos()).String())
+	assertEqual(t, fmt.Sprintf("%s:2:9", fname), fset.Position(val.End()).String())
+	assertEqual(t, "10225406", val.(*LiteralValue).Val.Text)
+	assertEqual(t, INT, val.(*LiteralValue).Val.Kind)
+
+	val, err = p.value()
+	if err != nil {
+		t.Error("unexpected error", err)
+	}
+	assertEqual(t, fmt.Sprintf("%s:2:10", fname), fset.Position(val.Pos()).String())
+	assertEqual(t, fmt.Sprintf("%s:2:19", fname), fset.Position(val.End()).String())
+	assertEqual(t, "3.1415926", val.(*LiteralValue).Val.Text)
+	assertEqual(t, FLOAT, val.(*LiteralValue).Val.Kind)
+
+	val, err = p.value()
+	if err != nil {
+		t.Error("unexpected error", err)
+	}
+	assertEqual(t, fmt.Sprintf("%s:2:20", fname), fset.Position(val.Pos()).String())
+	assertEqual(t, fmt.Sprintf("%s:2:28", fname), fset.Position(val.End()).String())
+	assertEqual(t, "Golang", val.(*LiteralValue).Val.Text)
+	assertEqual(t, STRING, val.(*LiteralValue).Val.Kind)
+
+	val, err = p.value()
+	if err != nil {
+		t.Error("unexpected error", err)
+	}
+	assertEqual(t, fmt.Sprintf("%s:2:29", fname), fset.Position(val.Pos()).String())
+	assertEqual(t, fmt.Sprintf("%s:2:33", fname), fset.Position(val.End()).String())
+	assertEqual(t, "true", val.(*NameValue).Val.Text)
+	assertEqual(t, NAME, val.(*NameValue).Val.Kind)
+
+	val, err = p.value()
+	if err != nil {
+		t.Error("unexpected error", err)
+	}
+	assertEqual(t, fmt.Sprintf("%s:2:34", fname), fset.Position(val.Pos()).String())
+	assertEqual(t, fmt.Sprintf("%s:2:39", fname), fset.Position(val.End()).String())
+	assertEqual(t, "false", val.(*NameValue).Val.Text)
+	assertEqual(t, NAME, val.(*NameValue).Val.Kind)
+
+	val, err = p.value()
+	if err != nil {
+		t.Error("unexpected error", err)
+	}
+	assertEqual(t, fmt.Sprintf("%s:2:40", fname), fset.Position(val.Pos()).String())
+	assertEqual(t, fmt.Sprintf("%s:2:44", fname), fset.Position(val.End()).String())
+	assertEqual(t, "null", val.(*NameValue).Val.Text)
+	assertEqual(t, NAME, val.(*NameValue).Val.Kind)
+
+	val, err = p.value()
+	if err != nil {
+		t.Error("unexpected error", err)
+	}
+	assertEqual(t, fmt.Sprintf("%s:2:45", fname), fset.Position(val.Pos()).String())
+	assertEqual(t, fmt.Sprintf("%s:2:49", fname), fset.Position(val.End()).String())
+	assertEqual(t, "MALE", val.(*NameValue).Val.Text)
+	assertEqual(t, NAME, val.(*NameValue).Val.Kind)
+
+	val, err = p.value()
+	if err != nil {
+		t.Error("unexpected error", err)
+	}
+	assertEqual(t, fmt.Sprintf("%s:2:50", fname), fset.Position(val.Pos()).String())
+	assertEqual(t, fmt.Sprintf("%s:2:56", fname), fset.Position(val.End()).String())
+	assertEqual(t, "FEMALE", val.(*NameValue).Val.Text)
+	assertEqual(t, NAME, val.(*NameValue).Val.Kind)
+
+	val, err = p.value()
+	if err != nil {
+		t.Error("unexpected error", err)
+	}
+	assertEqual(t, fmt.Sprintf("%s:3:1", fname), fset.Position(val.Pos()).String())
+	assertEqual(t, fmt.Sprintf("%s:3:3", fname), fset.Position(val.End()).String())
+	assertTrue(t, val.(*ListValue).Vals == nil)
+
+	val, err = p.value()
+	if err != nil {
+		t.Error("unexpected error", err)
+	}
+	assertEqual(t, fmt.Sprintf("%s:3:4", fname), fset.Position(val.Pos()).String())
+	assertEqual(t, fmt.Sprintf("%s:3:31", fname), fset.Position(val.End()).String())
+	assertEqual(t, 4, len(val.(*ListValue).Vals))
+	assertEqual(t, "123", val.(*ListValue).Vals[0].(*LiteralValue).Val.Text)
+	assertEqual(t, INT, val.(*ListValue).Vals[0].(*LiteralValue).Val.Kind)
+	assertEqual(t, "true", val.(*ListValue).Vals[1].(*NameValue).Val.Text)
+	assertEqual(t, NAME, val.(*ListValue).Vals[1].(*NameValue).Val.Kind)
+	assertEqual(t, "2.3E-10", val.(*ListValue).Vals[2].(*LiteralValue).Val.Text)
+	assertEqual(t, FLOAT, val.(*ListValue).Vals[2].(*LiteralValue).Val.Kind)
+	assertEqual(t, "gender", val.(*ListValue).Vals[3].(*Variable).Name.Text)
+
+	val, err = p.value()
+	if err != nil {
+		t.Error("unexpected error", err)
+	}
+	assertEqual(t, fmt.Sprintf("%s:4:1", fname), fset.Position(val.Pos()).String())
+	assertEqual(t, fmt.Sprintf("%s:4:3", fname), fset.Position(val.End()).String())
+	assertEqual(t, 0, len(val.(*ObjectValue).ObjFields))
+
+	val, err = p.value()
+	if err != nil {
+		t.Error("unexpected error", err)
+	}
+	assertEqual(t, fmt.Sprintf("%s:4:4", fname), fset.Position(val.Pos()).String())
+	assertEqual(t, fmt.Sprintf("%s:4:48", fname), fset.Position(val.End()).String())
+	assertEqual(t, 3, len(val.(*ObjectValue).ObjFields))
+	assertEqual(t, "name", val.(*ObjectValue).ObjFields[0].Name.Text)
+	assertEqual(t, "Hello world", val.(*ObjectValue).ObjFields[0].Val.(*LiteralValue).Val.Text)
+	assertEqual(t, STRING, val.(*ObjectValue).ObjFields[0].Val.(*LiteralValue).Val.Kind)
+	assertEqual(t, "score", val.(*ObjectValue).ObjFields[1].Name.Text)
+	assertEqual(t, "1.0", val.(*ObjectValue).ObjFields[1].Val.(*LiteralValue).Val.Text)
+	assertEqual(t, FLOAT, val.(*ObjectValue).ObjFields[1].Val.(*LiteralValue).Val.Kind)
+	assertEqual(t, "job", val.(*ObjectValue).ObjFields[2].Name.Text)
+	assertEqual(t, "job", val.(*ObjectValue).ObjFields[2].Val.(*Variable).Name.Text)
+	assertEqual(t, fmt.Sprintf("%s:4:38", fname), fset.Position(val.(*ObjectValue).ObjFields[2].Pos()).String())
+	assertEqual(t, fmt.Sprintf("%s:4:47", fname), fset.Position(val.(*ObjectValue).ObjFields[2].End()).String())
+
+	val, err = p.value()
+	if err != nil {
+		t.Error("unexpected error", err)
+	}
+	assertEqual(t, fmt.Sprintf("%s:5:1", fname), fset.Position(val.Pos()).String())
+	assertEqual(t, fmt.Sprintf("%s:19:2", fname), fset.Position(val.End()).String())
+	assertEqual(t, 1, len(val.(*ObjectValue).ObjFields))
+	assertEqual(t, 3, len(val.(*ObjectValue).ObjFields[0].Val.(*ListValue).Vals))
+	listVal := val.(*ObjectValue).ObjFields[0].Val.(*ListValue)
+	assertEqual(t, fmt.Sprintf("%s:5:10", fname), fset.Position(listVal.Pos()).String())
+	assertEqual(t, fmt.Sprintf("%s:18:4", fname), fset.Position(listVal.End()).String())
+	for _, v := range listVal.Vals {
+		assertTrue(t, len(v.(*ObjectValue).ObjFields) == 2)
+		assertTrue(t, v.(*ObjectValue).ObjFields[0].Val.(*LiteralValue).Val.Kind == STRING)
+		assertTrue(t, v.(*ObjectValue).ObjFields[1].Val.(*LiteralValue).Val.Kind == FLOAT)
+	}
+}
+func TestConstValues(t *testing.T)             {}
 func TestFragmentDefinition(t *testing.T)      {}
 func TestSelectionSet(t *testing.T)            {}
 func TestOperationDefinition(t *testing.T)     {}
