@@ -179,7 +179,7 @@ func (p *parser) operationDefinition() (*OperationDefinition, error) {
 					Stringify(QUERY),
 					Stringify(MUTATION),
 					Stringify(SUBSCRIPTION))
-				return operDefn, p.parseError(expect)
+				return nil, p.parseError(expect)
 			}
 		}
 	}
@@ -193,14 +193,14 @@ func (p *parser) operationDefinition() (*OperationDefinition, error) {
 	if p.lookAhead(1).Kind == LPAREN {
 		operDefn.VarDefns, err = p.variableDefinitions()
 		if err != nil {
-			return operDefn, err
+			return nil, err
 		}
 	}
 
 	if p.lookAhead(1).Kind == AT {
 		operDefn.Directs, err = p.directives()
 		if err != nil {
-			return operDefn, err
+			return nil, err
 		}
 	}
 

@@ -383,12 +383,120 @@ func TestConstValues(t *testing.T) {
 	}
 	assertTrue(t, len(val.(*ObjectValue).ObjFields) == 2)
 }
-func TestFragmentDefinition(t *testing.T)      {}
-func TestSelectionSet(t *testing.T)            {}
-func TestOperationDefinition(t *testing.T)     {}
-func TestDefinition(t *testing.T)              {}
-func TestDocument(t *testing.T)                {}
-func TestUnionDefinition(t *testing.T)         {}
+func TestFragmentDefinition(t *testing.T) {
+	frag := `
+fragment comparisonFields on Character {
+	name
+	appearsIn
+	friends {
+		name
+	}
+}
+`
+	fset := token.NewFileSet()
+	p := newParser([]byte(frag), "", fset)
+
+	def, err := p.fragmentDefinition()
+	if err != nil {
+		t.Error("unexpected error", err)
+	}
+	assertEqual(t, "2:1", fset.Position(def.Pos()).String())
+	assertEqual(t, "8:2", fset.Position(def.End()).String())
+	assertTrue(t, def.Name.Text == "comparisonFields")
+	assertTrue(t, def.TypeCond != nil)
+	assertTrue(t, def.Directs == nil)
+	assertTrue(t, len(def.SelSet.Sels) == 3)
+	assertEqual(t, "5:2", fset.Position(def.SelSet.Sels[2].(*Field).Pos()).String())
+	assertEqual(t, "7:3", fset.Position(def.SelSet.Sels[2].(*Field).End()).String())
+	assertTrue(t, def.SelSet.Sels[2].(*Field).SelSet != nil)
+	assertTrue(t, len(def.SelSet.Sels[2].(*Field).SelSet.Sels) == 1)
+}
+
+func TestOperationDefinition(t *testing.T) {
+	oper := `
+query HeroForEpisode($ep: Episode!) {
+	hero(episode: $ep) {
+		name
+		... on Droid {
+      primaryFunction
+		}
+    ... on Human {
+      height
+    }
+  }
+}`
+
+	fset := token.NewFileSet()
+	p := newParser([]byte(oper), "", fset)
+	op, err := p.operationDefinition()
+	if err != nil {
+		t.Error("unexpected error", err)
+	}
+	assertEqual(t, "2:1", fset.Position(op.Pos()).String())
+	assertEqual(t, "12:2", fset.Position(op.End()).String())
+	assertEqual(t, "query", op.OperType.Text)
+	assertEqual(t, "HeroForEpisode", op.Name.Text)
+	assertTrue(t, op.VarDefns != nil)
+	assertTrue(t, op.Directs == nil)
+	assertTrue(t, op.SelSet != nil)
+	assertTrue(t, len(op.SelSet.Sels) == 1)
+	innerSelSet := op.SelSet.Sels[0].(*Field).SelSet
+	assertTrue(t, len(innerSelSet.Sels) == 3)
+	assertEqual(t, "Droid", innerSelSet.Sels[1].(*InlineFragment).TypeCond.NamedTyp.Name.Text)
+	assertEqual(t, "Human", innerSelSet.Sels[2].(*InlineFragment).TypeCond.NamedTyp.Name.Text)
+	inlineFrag := innerSelSet.Sels[1].(*InlineFragment)
+	assertEqual(t, "5:3", fset.Position(inlineFrag.Pos()).String())
+	assertEqual(t, "7:4", fset.Position(inlineFrag.End()).String())
+}
+
+func TestDocument(t *testing.T) {
+	doc := `
+query withFragments {
+	user(id: 4) {
+		friends(first: 10) {
+			...friendFields
+		}
+		mutualFriends(first: 10) {
+			...friendFields
+		}
+	}
+}
+
+fragment friendFields on User {
+	id
+	name
+	profilePic(size: 50)
+}`
+
+	fset := token.NewFileSet()
+	p := newParser([]byte(doc), "", fset)
+
+	document, err := p.parseDocument()
+	if err != nil {
+		t.Error("unexpected error", err)
+	}
+
+	assertEqual(t, "2:1", fset.Position(document.Pos()).String())
+	assertEqual(t, "17:2", fset.Position(document.End()).String())
+	assertTrue(t, len(document.Defs) == 2)
+	query := document.Defs[0].(*OperationDefinition)
+	assertEqual(t, "2:21", fset.Position(query.SelSet.Pos()).String())
+	spread := query.SelSet.Sels[0].(*Field).SelSet.Sels[0].(*Field).SelSet.Sels[0].(*FragmentSpread)
+	assertEqual(t, "5:4", fset.Position(spread.Pos()).String())
+	assertEqual(t, "5:19", fset.Position(spread.End()).String())
+	frag := document.Defs[1].(*FragmentDefinition)
+	assertEqual(t, "13:1", fset.Position(frag.Pos()).String())
+	assertEqual(t, "17:2", fset.Position(frag.End()).String())
+}
+
+func TestUnionDefinition(t *testing.T) {
+	// unions := `
+	// union Feed = Story | Article | Advert
+	//
+	// union AnnotatedUnion @onUnion = A | B
+	//
+	// union AnnotatedUnionTwo @onUnion = A | B`
+}
 func TestEnumDefinition(t *testing.T)          {}
 func TestOperationTypeDefinition(t *testing.T) {}
 func TestSchemaDefinition(t *testing.T)        {}
