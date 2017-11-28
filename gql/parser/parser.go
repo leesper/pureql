@@ -982,7 +982,7 @@ func (p *parser) consume() {
 
 	// record the token and position of its first character
 	p.lookAheads[p.curr] = tok
-	p.tokenOffsets[p.curr] = offs - 1
+	p.tokenOffsets[p.curr] = offs - 1 // minus one to start from zero
 
 	p.curr = (p.curr + 1) % len(p.lookAheads)
 }

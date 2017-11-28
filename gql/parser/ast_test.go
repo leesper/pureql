@@ -134,8 +134,59 @@ Type2!
 }
 
 func TestVariableDefinitions(t *testing.T) {
-	// varDefns := `($episode: Episode = "JEDI", $withFriends: Boolean!, $ep: Episode!, $review: ReviewInput!)`
+	varDefns := `($episode: Episode = "JEDI", $withFriends: Boolean!, $ep: Episode! $review: ReviewInput!)`
+	fset := token.NewFileSet()
+	p := newParser([]byte(varDefns), "", fset)
+	defns, err := p.variableDefinitions()
+	if err != nil {
+		t.Error("unexpected error", err)
+	}
+
+	assertEqual(t, "1:1", fset.Position(defns.Pos()).String())
+	assertEqual(t, fmt.Sprintf("1:%d", len(varDefns)+1), fset.Position(defns.End()).String())
+
+	if len(defns.VarDefns) != 4 {
+		t.Error("should have 4 variables")
+	}
+
+	episode := defns.VarDefns[0]
+	assertEqual(t, "1:2", fset.Position(episode.Pos()).String())
+	assertEqual(t, "1:28", fset.Position(episode.End()).String())
+	assertEqual(t, "1:2", fset.Position(episode.Var.Dollar).String())
+	assertEqual(t, "episode", episode.Var.Name.Text)
+	assertEqual(t, "1:2", fset.Position(episode.Var.Pos()).String())
+	assertEqual(t, "1:10", fset.Position(episode.Var.End()).String())
+	assertEqual(t, "1:10", fset.Position(episode.Colon).String())
+	assertEqual(t, "Episode", episode.Typ.(*NamedType).Name.Text)
+	assertFalse(t, episode.Typ.(*NamedType).NonNull)
+	assertEqual(t, "1:20", fset.Position(episode.DeflVal.Eq).String())
+	assertEqual(t, "JEDI", episode.DeflVal.Val.(*LiteralValue).Val.Text)
+	assertEqual(t, "1:20", fset.Position(episode.DeflVal.Pos()).String())
+	assertEqual(t, "1:28", fset.Position(episode.DeflVal.End()).String())
+	assertEqual(t, "1:22", fset.Position(episode.DeflVal.Val.Pos()).String())
+	assertEqual(t, "1:28", fset.Position(episode.DeflVal.Val.End()).String())
+
+	withFriends := defns.VarDefns[1]
+	assertEqual(t, "1:30", fset.Position(withFriends.Pos()).String())
+	assertEqual(t, "1:52", fset.Position(withFriends.End()).String())
+	assertEqual(t, "withFriends", withFriends.Var.Name.Text)
+	assertEqual(t, "Boolean", withFriends.Typ.(*NamedType).Name.Text)
+	assertTrue(t, withFriends.Typ.(*NamedType).NonNull)
+	assertEqual(t, "1:51", fset.Position(withFriends.Typ.(*NamedType).BangPos).String())
+	assertTrue(t, withFriends.DeflVal == nil)
+
+	ep := defns.VarDefns[2]
+	assertEqual(t, "1:54", fset.Position(ep.Pos()).String())
+	assertEqual(t, "1:67", fset.Position(ep.End()).String())
+
+	review := defns.VarDefns[3]
+	assertEqual(t, "1:68", fset.Position(review.Pos()).String())
+	assertEqual(t, "1:89", fset.Position(review.End()).String())
+	assertEqual(t, "ReviewInput", review.Typ.(*NamedType).Name.Text)
+	assertEqual(t, "1:88", fset.Position(review.Typ.(*NamedType).BangPos).String())
+	assertTrue(t, review.Typ.(*NamedType).NonNull)
 }
+
 func TestValues(t *testing.T)                  {}
 func TestFragmentDefinition(t *testing.T)      {}
 func TestSelectionSet(t *testing.T)            {}

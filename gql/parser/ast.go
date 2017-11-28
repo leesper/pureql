@@ -215,7 +215,11 @@ func (l *LiteralValue) Pos() token.Pos {
 
 // End returns position of first character immediately after the node
 func (l *LiteralValue) End() token.Pos {
-	return token.Pos(int(l.ValPos) + len(l.Val.Text))
+	extra := 0 // if STRING add offset for two duoble-quotes
+	if l.Val.Kind == STRING {
+		extra = 2
+	}
+	return token.Pos(int(l.ValPos) + len(l.Val.Text) + extra)
 }
 
 func (l *LiteralValue) valueNode() {}
