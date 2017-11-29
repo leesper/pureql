@@ -490,12 +490,41 @@ fragment friendFields on User {
 }
 
 func TestUnionDefinition(t *testing.T) {
-	// unions := `
-	// union Feed = Story | Article | Advert
-	//
-	// union AnnotatedUnion @onUnion = A | B
-	//
-	// union AnnotatedUnionTwo @onUnion = A | B`
+	unions := `
+union Feed = Story | Article | Advert
+union AnnotatedUnion @onUnion = A | B
+union AnnotatedUnionTwo @onUnion = A | B`
+
+	fset := token.NewFileSet()
+	p := newParser([]byte(unions), "", fset)
+	def, err := p.unionDefinition()
+	if err != nil {
+		t.Error("unexpected error", err)
+	}
+	assertEqual(t, "2:1", fset.Position(def.Pos()).String())
+	assertEqual(t, "2:38", fset.Position(def.End()).String())
+	assertTrue(t, def.Directs == nil)
+	assertTrue(t, def.Members != nil)
+	assertEqual(t, "Story", def.Members.NamedTyp.Name.Text)
+	assertEqual(t, "2:14", fset.Position(def.Members.Pos()).String())
+	assertEqual(t, "2:38", fset.Position(def.Members.End()).String())
+
+	def, err = p.unionDefinition()
+	if err != nil {
+		t.Error("unexpected error", err)
+	}
+	assertEqual(t, "3:1", fset.Position(def.Pos()).String())
+	assertEqual(t, "3:38", fset.Position(def.End()).String())
+	assertTrue(t, def.Directs != nil)
+
+	def, err = p.unionDefinition()
+	if err != nil {
+		t.Error("unexpected error", err)
+	}
+	assertEqual(t, "4:1", fset.Position(def.Pos()).String())
+	assertEqual(t, "4:41", fset.Position(def.End()).String())
+	assertTrue(t, def.Directs != nil)
+	assertEqual(t, "AnnotatedUnionTwo", def.Name.Text)
 }
 func TestEnumDefinition(t *testing.T)          {}
 func TestOperationTypeDefinition(t *testing.T) {}
