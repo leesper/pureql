@@ -769,7 +769,7 @@ func (d *DirectiveLocations) End() token.Pos {
 	if d.Locs != nil {
 		return d.Locs[len(d.Locs)-1].End()
 	}
-	return token.Pos(int(d.NamePos) + 1)
+	return token.Pos(int(d.NamePos) + len(d.Name.Text))
 }
 
 // DirectiveLocation node
@@ -786,7 +786,7 @@ func (d *DirectiveLocation) Pos() token.Pos {
 
 // End returns position of first character immediately after the node
 func (d *DirectiveLocation) End() token.Pos {
-	return token.Pos(int(d.NamePos) + 1)
+	return token.Pos(int(d.NamePos) + len(d.Name.Text))
 }
 
 // SchemaDefinition node

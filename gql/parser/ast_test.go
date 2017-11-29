@@ -588,8 +588,54 @@ schema {
 	assertEqual(t, "mutation", def.OperDefns[1].OperType.Text)
 }
 
-func TestDirectiveDefinition(t *testing.T)   {}
-func TestExtendDefinition(t *testing.T)      {}
+func TestDirectiveDefinition(t *testing.T) {
+	directive := `
+directive @include(if: Boolean!)
+	on FIELD
+	| FRAGMENT_SPREAD
+	| INLINE_FRAGMENT
+
+directive @include2(if: Boolean!) on FIELD`
+	fset := token.NewFileSet()
+	p := newParser([]byte(directive), "", fset)
+	def, err := p.directiveDefinition()
+	if err != nil {
+		t.Error("unexpected error", err)
+	}
+	assertEqual(t, "2:1", fset.Position(def.Pos()).String())
+	assertEqual(t, "5:19", fset.Position(def.End()).String())
+	assertEqual(t, "include", def.Name.Text)
+	assertTrue(t, def.Args != nil)
+	assertTrue(t, def.Locs != nil)
+	assertEqual(t, "4:2", fset.Position(def.Locs.Locs[0].Pos()).String())
+	assertEqual(t, "3:5", fset.Position(def.Locs.Pos()).String())
+	assertEqual(t, "5:19", fset.Position(def.Locs.End()).String())
+
+	def, err = p.directiveDefinition()
+	if err != nil {
+		t.Error("unexpected error", err)
+	}
+	assertEqual(t, "7:1", fset.Position(def.Pos()).String())
+	assertEqual(t, "7:43", fset.Position(def.End()).String())
+	assertEqual(t, "include2", def.Name.Text)
+}
+
+func TestExtendDefinition(t *testing.T) {
+	extend := `
+extend type Foo @onType {
+	seven(argument: [String]): Type
+}`
+	fset := token.NewFileSet()
+	p := newParser([]byte(extend), "", fset)
+	def, err := p.extendDefinition()
+	if err != nil {
+		t.Error("unexpected error", err)
+	}
+	assertEqual(t, "2:1", fset.Position(def.Pos()).String())
+	assertEqual(t, "4:2", fset.Position(def.End()).String())
+	assertTrue(t, def.TypDefn != nil)
+}
+
 func TestTypeDefinition(t *testing.T)        {}
 func TestInputObjectDefinition(t *testing.T) {}
 func TestScalarDefinition(t *testing.T)      {}
