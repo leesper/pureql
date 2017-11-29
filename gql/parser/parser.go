@@ -75,12 +75,6 @@ func (p *parser) parseSchema() (*Schema, error) {
 		return nil, err
 	}
 
-	for p.lookAhead(1) != TokenEOF {
-		schema, err = p.schema()
-		if err != nil {
-			return nil, err
-		}
-	}
 	return schema, nil
 }
 

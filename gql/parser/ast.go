@@ -70,7 +70,10 @@ type OperationDefinition struct {
 
 // Pos returns position of first character belong to the node
 func (o *OperationDefinition) Pos() token.Pos {
-	return o.OperPos
+	if o.OperType.Kind != ILLEGAL {
+		return o.OperPos
+	}
+	return o.SelSet.Pos()
 }
 
 // End returns position of first character immediately after the node
@@ -545,7 +548,7 @@ func (s *Schema) Pos() token.Pos {
 
 // End returns position of first character immediately after the node
 func (s *Schema) End() token.Pos {
-	return token.Pos(int(s.end) + 1)
+	return token.Pos(int(s.end))
 }
 
 // InterfaceDefinition node

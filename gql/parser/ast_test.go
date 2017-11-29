@@ -719,10 +719,69 @@ scalar Date`
 	assertEqual(t, "2:1", fset.Position(def.Pos()).String())
 	assertEqual(t, "2:12", fset.Position(def.End()).String())
 }
-func TestInputValueDefinition(t *testing.T) {}
-func TestArgumentsDefinition(t *testing.T)  {}
-func TestFieldDefinition(t *testing.T)      {}
-func TestInterfaceDefinition(t *testing.T)  {}
-func TestSchema(t *testing.T)               {}
-func TestVisitor(t *testing.T)              {}
-func TestInspect(t *testing.T)              {}
+
+func TestInterfaceDefinition(t *testing.T) {
+	iface := `
+interface Bar {
+	one: Type
+	four(argument: String = "string"): String
+}
+
+interface AnnotatedInterface @onInterface {
+	annotatedField(arg: Type @onArg): Type @onField
+}`
+	fset := token.NewFileSet()
+	p := newParser([]byte(iface), "", fset)
+	def, err := p.interfaceDefinition()
+	if err != nil {
+		t.Error("unexpected error", err)
+	}
+	assertEqual(t, "2:1", fset.Position(def.Pos()).String())
+	assertEqual(t, "5:2", fset.Position(def.End()).String())
+
+	def, err = p.interfaceDefinition()
+	if err != nil {
+		t.Error("unexpected error", err)
+	}
+	assertEqual(t, "7:1", fset.Position(def.Pos()).String())
+	assertEqual(t, "9:2", fset.Position(def.End()).String())
+}
+
+func TestSchema(t *testing.T) {
+	schemas := `
+interface Entity {
+	id: ID!
+	name: String
+}
+
+type User implements Entity {
+	id: ID!
+	name: String
+	age: Int
+	balance: Float
+	is_active: Boolean
+	friends: [User]!
+}
+
+type Root {
+	me: User
+	users(limit: Int = 10): [User]!
+	friends(forUser: ID!, limit: Int = 5): [User]!
+}
+
+schema {
+	query: Root
+}`
+
+	fset := token.NewFileSet()
+	p := newParser([]byte(schemas), "", fset)
+	def, err := p.schema()
+	if err != nil {
+		t.Error("unexpected error", err)
+	}
+	assertEqual(t, "2:1", fset.Position(def.Pos()).String())
+	assertEqual(t, "24:2", fset.Position(def.End()).String())
+	assertTrue(t, len(def.Interfaces) == 1)
+	assertTrue(t, len(def.Types) == 2)
+	assertTrue(t, len(def.Schemas) == 1)
+}
