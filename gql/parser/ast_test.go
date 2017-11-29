@@ -526,7 +526,45 @@ union AnnotatedUnionTwo @onUnion = A | B`
 	assertTrue(t, def.Directs != nil)
 	assertEqual(t, "AnnotatedUnionTwo", def.Name.Text)
 }
-func TestEnumDefinition(t *testing.T)          {}
+
+func TestEnumDefinition(t *testing.T) {
+	enums := `
+enum Site {
+	DESKTOP
+	MOBILE
+}
+
+enum AnnotatedEnum @onEnum {
+	ANNOTATED_VALUE @onEnumValue
+	OTHER_VALUE
+}`
+
+	fset := token.NewFileSet()
+	p := newParser([]byte(enums), "", fset)
+	def, err := p.enumDefinition()
+	if err != nil {
+		t.Error("unexpected error", err)
+	}
+	assertEqual(t, "2:1", fset.Position(def.Pos()).String())
+	assertEqual(t, "5:2", fset.Position(def.End()).String())
+	assertTrue(t, def.Directs == nil)
+	assertTrue(t, len(def.EnumVals) == 2)
+	assertEqual(t, "DESKTOP", def.EnumVals[0].Name.Text)
+	assertEqual(t, "MOBILE", def.EnumVals[1].Name.Text)
+
+	def, err = p.enumDefinition()
+	if err != nil {
+		t.Error("unexpected error", err)
+	}
+	assertEqual(t, "7:1", fset.Position(def.Pos()).String())
+	assertEqual(t, "10:2", fset.Position(def.End()).String())
+	assertTrue(t, def.Directs != nil)
+	assertTrue(t, len(def.EnumVals) == 2)
+	assertEqual(t, "ANNOTATED_VALUE", def.EnumVals[0].Name.Text)
+	assertEqual(t, "onEnumValue", def.EnumVals[0].Directs.Directs[0].Name.Text)
+	assertEqual(t, "OTHER_VALUE", def.EnumVals[1].Name.Text)
+}
+
 func TestOperationTypeDefinition(t *testing.T) {}
 func TestSchemaDefinition(t *testing.T)        {}
 func TestDirectiveDefinition(t *testing.T)     {}
