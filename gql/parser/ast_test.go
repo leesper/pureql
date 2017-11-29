@@ -565,17 +565,38 @@ enum AnnotatedEnum @onEnum {
 	assertEqual(t, "OTHER_VALUE", def.EnumVals[1].Name.Text)
 }
 
-func TestOperationTypeDefinition(t *testing.T) {}
-func TestSchemaDefinition(t *testing.T)        {}
-func TestDirectiveDefinition(t *testing.T)     {}
-func TestExtendDefinition(t *testing.T)        {}
-func TestTypeDefinition(t *testing.T)          {}
-func TestInputObjectDefinition(t *testing.T)   {}
-func TestScalarDefinition(t *testing.T)        {}
-func TestInputValueDefinition(t *testing.T)    {}
-func TestArgumentsDefinition(t *testing.T)     {}
-func TestFieldDefinition(t *testing.T)         {}
-func TestInterfaceDefinition(t *testing.T)     {}
-func TestSchema(t *testing.T)                  {}
-func TestVisitor(t *testing.T)                 {}
-func TestInspect(t *testing.T)                 {}
+func TestSchemaDefinition(t *testing.T) {
+	schema := `
+schema {
+	query: QueryType
+	mutation: MutationType
+}`
+	fset := token.NewFileSet()
+	p := newParser([]byte(schema), "", fset)
+	def, err := p.schemaDefinition()
+	if err != nil {
+		t.Error("unexpected error", err)
+	}
+	assertEqual(t, "2:1", fset.Position(def.Pos()).String())
+	assertEqual(t, "5:2", fset.Position(def.End()).String())
+	assertTrue(t, len(def.OperDefns) == 2)
+	assertEqual(t, "3:2", fset.Position(def.OperDefns[0].Pos()).String())
+	assertEqual(t, "3:18", fset.Position(def.OperDefns[0].End()).String())
+	assertEqual(t, "QueryType", def.OperDefns[0].NamedTyp.Name.Text)
+	assertEqual(t, "query", def.OperDefns[0].OperType.Text)
+	assertEqual(t, "MutationType", def.OperDefns[1].NamedTyp.Name.Text)
+	assertEqual(t, "mutation", def.OperDefns[1].OperType.Text)
+}
+
+func TestDirectiveDefinition(t *testing.T)   {}
+func TestExtendDefinition(t *testing.T)      {}
+func TestTypeDefinition(t *testing.T)        {}
+func TestInputObjectDefinition(t *testing.T) {}
+func TestScalarDefinition(t *testing.T)      {}
+func TestInputValueDefinition(t *testing.T)  {}
+func TestArgumentsDefinition(t *testing.T)   {}
+func TestFieldDefinition(t *testing.T)       {}
+func TestInterfaceDefinition(t *testing.T)   {}
+func TestSchema(t *testing.T)                {}
+func TestVisitor(t *testing.T)               {}
+func TestInspect(t *testing.T)               {}
