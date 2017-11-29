@@ -87,6 +87,7 @@ directive @include2(if: Boolean!) on
 	// 30:1:	input object detected
 	// 6:1:	type detected
 	// 35:1:	extend detected
+	// 35:8:	type detected
 	// 39:1:	directive detected
 	// 1:1:	schema detected
 	// 25:1:	enum detected

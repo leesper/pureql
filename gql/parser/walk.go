@@ -1,5 +1,7 @@
 package parser
 
+import "fmt"
+
 // Inspect traverses the AST in depth-first order; It starts by calling f(node);
 // node must be non-nil. If f returns true, Inspect invokes f recursively for
 // each of the non-nil children, followed by a call of f(nil)
@@ -36,234 +38,236 @@ func Walk(v Visitor, node Node) {
 	switch n := node.(type) {
 	case *Document:
 		for _, def := range n.Defs {
-			v.Visit(def)
+			Walk(v, def)
 		}
 	case *OperationDefinition:
 		if n.VarDefns != nil {
-			v.Visit(n.VarDefns)
+			Walk(v, n.VarDefns)
 		}
 		if n.Directs != nil {
-			v.Visit(n.Directs)
+			Walk(v, n.Directs)
 		}
-		v.Visit(n.SelSet)
+		Walk(v, n.SelSet)
 	case *SelectionSet:
 		for _, s := range n.Sels {
-			v.Visit(s)
+			Walk(v, s)
 		}
 	case *Field:
 		if n.Als != nil {
-			v.Visit(n.Als)
+			Walk(v, n.Als)
 		}
 		if n.Args != nil {
-			v.Visit(n.Args)
+			Walk(v, n.Args)
 		}
 		if n.Directs != nil {
-			v.Visit(n.Directs)
+			Walk(v, n.Directs)
 		}
 		if n.SelSet != nil {
-			v.Visit(n.SelSet)
+			Walk(v, n.SelSet)
 		}
 	case *Alias:
 		// do nothing
 	case *Arguments:
 		for _, a := range n.Args {
-			v.Visit(a)
+			Walk(v, a)
 		}
 	case *Argument:
-		v.Visit(n.Val)
+		Walk(v, n.Val)
 	case *FragmentSpread:
 		if n.Directs != nil {
-			v.Visit(n.Directs)
+			Walk(v, n.Directs)
 		}
 	case *InlineFragment:
 		if n.TypeCond != nil {
-			v.Visit(n.TypeCond)
+			Walk(v, n.TypeCond)
 		}
 		if n.Directs != nil {
-			v.Visit(n.Directs)
+			Walk(v, n.Directs)
 		}
-		v.Visit(n.SelSet)
+		Walk(v, n.SelSet)
 	case *FragmentDefinition:
-		v.Visit(n.TypeCond)
+		Walk(v, n.TypeCond)
 		if n.Directs != nil {
-			v.Visit(n.Directs)
+			Walk(v, n.Directs)
 		}
-		v.Visit(n.SelSet)
+		Walk(v, n.SelSet)
 	case *TypeCondition:
-		v.Visit(n.NamedTyp)
+		Walk(v, n.NamedTyp)
 	case *Variable, *LiteralValue, *NameValue:
 		// do nothing
 	case *ListValue:
 		for _, val := range n.Vals {
-			v.Visit(val)
+			Walk(v, val)
 		}
 	case *ObjectValue:
 		for _, obj := range n.ObjFields {
-			v.Visit(obj)
+			Walk(v, obj)
 		}
 	case *ObjectField:
-		v.Visit(n.Val)
+		Walk(v, n.Val)
 	case *VariableDefinitions:
 		for _, vd := range n.VarDefns {
-			v.Visit(vd)
+			Walk(v, vd)
 		}
 	case *VariableDefinition:
-		v.Visit(n.Var)
-		v.Visit(n.Typ)
+		Walk(v, n.Var)
+		Walk(v, n.Typ)
 		if n.DeflVal != nil {
-			v.Visit(n.DeflVal)
+			Walk(v, n.DeflVal)
 		}
 	case *DefaultValue:
-		v.Visit(n.Val)
+		Walk(v, n.Val)
 	case *NamedType:
 		// do nothing
 	case *ListType:
-		v.Visit(n.Typ)
+		Walk(v, n.Typ)
 	case *Directives:
 		for _, d := range n.Directs {
-			v.Visit(d)
+			Walk(v, d)
 		}
 	case *Directive:
 		if n.Args != nil {
-			v.Visit(n.Args)
+			Walk(v, n.Args)
 		}
 	case *Schema:
 		for _, iface := range n.Interfaces {
-			v.Visit(iface)
+			Walk(v, iface)
 		}
 		for _, scalar := range n.Scalars {
-			v.Visit(scalar)
+			Walk(v, scalar)
 		}
 		for _, input := range n.InputObjects {
-			v.Visit(input)
+			Walk(v, input)
 		}
 		for _, typ := range n.Types {
-			v.Visit(typ)
+			Walk(v, typ)
 		}
 		for _, extend := range n.Extends {
-			v.Visit(extend)
+			Walk(v, extend)
 		}
 		for _, direct := range n.Directives {
-			v.Visit(direct)
+			Walk(v, direct)
 		}
 		for _, schema := range n.Schemas {
-			v.Visit(schema)
+			Walk(v, schema)
 		}
 		for _, enum := range n.Enums {
-			v.Visit(enum)
+			Walk(v, enum)
 		}
 		for _, union := range n.Unions {
-			v.Visit(union)
+			Walk(v, union)
 		}
 	case *InterfaceDefinition:
 		if n.Directs != nil {
-			v.Visit(n.Directs)
+			Walk(v, n.Directs)
 		}
 		for _, fd := range n.FieldDefns {
-			v.Visit(fd)
+			Walk(v, fd)
 		}
 	case *FieldDefinition:
 		if n.ArgDefns != nil {
-			v.Visit(n.ArgDefns)
+			Walk(v, n.ArgDefns)
 		}
-		v.Visit(n.Typ)
+		Walk(v, n.Typ)
 		if n.Directs != nil {
-			v.Visit(n.Directs)
+			Walk(v, n.Directs)
 		}
 	case *ArgumentsDefinition:
 		for _, input := range n.InputValDefns {
-			v.Visit(input)
+			Walk(v, input)
 		}
 	case *InputValueDefinition:
-		v.Visit(n.Typ)
+		Walk(v, n.Typ)
 		if n.DeflVal != nil {
-			v.Visit(n.DeflVal)
+			Walk(v, n.DeflVal)
 		}
 		if n.Directs != nil {
-			v.Visit(n.Directs)
+			Walk(v, n.Directs)
 		}
 	case *ScalarDefinition:
 		if n.Directs != nil {
-			v.Visit(n.Directs)
+			Walk(v, n.Directs)
 		}
 	case *InputObjectDefinition:
 		if n.Directs != nil {
-			v.Visit(n.Directs)
+			Walk(v, n.Directs)
 		}
 		for _, input := range n.InputValDefns {
-			v.Visit(input)
+			Walk(v, input)
 		}
 	case *TypeDefinition:
 		if n.Implements != nil {
-			v.Visit(n.Implements)
+			Walk(v, n.Implements)
 		}
 		if n.Directs != nil {
-			v.Visit(n.Directs)
+			Walk(v, n.Directs)
 		}
 		for _, fd := range n.FieldDefns {
-			v.Visit(fd)
+			Walk(v, fd)
 		}
 	case *ImplementsInterfaces:
 		for _, namdTyp := range n.NamedTyps {
-			v.Visit(namdTyp)
+			Walk(v, namdTyp)
 		}
 	case *ExtendDefinition:
 		if n.TypDefn != nil {
-			v.Visit(n.TypDefn)
+			Walk(v, n.TypDefn)
 		}
 	case *DirectiveDefinition:
 		if n.Args != nil {
-			v.Visit(n.Args)
+			Walk(v, n.Args)
 		}
 		if n.Locs != nil {
-			v.Visit(n.Locs)
+			Walk(v, n.Locs)
 		}
 	case *DirectiveLocations:
 		for _, l := range n.Locs {
-			v.Visit(l)
+			Walk(v, l)
 		}
 	case *DirectiveLocation:
 		// do nothing
 	case *SchemaDefinition:
 		if n.Directs != nil {
-			v.Visit(n.Directs)
+			Walk(v, n.Directs)
 		}
 		for _, o := range n.OperDefns {
-			v.Visit(o)
+			Walk(v, o)
 		}
 	case *OperationTypeDefinition:
 		if n.NamedTyp != nil {
-			v.Visit(n.NamedTyp)
+			Walk(v, n.NamedTyp)
 		}
 	case *EnumDefinition:
 		if n.Directs != nil {
-			v.Visit(n.Directs)
+			Walk(v, n.Directs)
 		}
 		for _, e := range n.EnumVals {
-			v.Visit(e)
+			Walk(v, e)
 		}
 	case *EnumValue:
 		if n.Directs != nil {
-			v.Visit(n.Directs)
+			Walk(v, n.Directs)
 		}
 	case *UnionDefinition:
 		if n.Directs != nil {
-			v.Visit(n.Directs)
+			Walk(v, n.Directs)
 		}
 		if n.Members != nil {
-			v.Visit(n.Members)
+			Walk(v, n.Members)
 		}
 	case *UnionMembers:
 		if n.NamedTyp != nil {
-			v.Visit(n.NamedTyp)
+			Walk(v, n.NamedTyp)
 		}
 		for _, m := range n.Members {
-			v.Visit(m)
+			Walk(v, m)
 		}
 	case *UnionMember:
 		if n.NamedTyp != nil {
-			v.Visit(n.NamedTyp)
+			Walk(v, n.NamedTyp)
 		}
+	default:
+		panic(fmt.Sprintf("parser.Walk: unexpected node type %T", n))
 	}
 
 	v.Visit(nil)
