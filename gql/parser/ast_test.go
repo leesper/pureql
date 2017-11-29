@@ -633,16 +633,76 @@ extend type Foo @onType {
 	}
 	assertEqual(t, "2:1", fset.Position(def.Pos()).String())
 	assertEqual(t, "4:2", fset.Position(def.End()).String())
+	assertEqual(t, "3:7", fset.Position(def.TypDefn.FieldDefns[0].ArgDefns.Pos()).String())
+	assertEqual(t, "3:27", fset.Position(def.TypDefn.FieldDefns[0].ArgDefns.End()).String())
 	assertTrue(t, def.TypDefn != nil)
 }
 
-func TestTypeDefinition(t *testing.T)        {}
-func TestInputObjectDefinition(t *testing.T) {}
-func TestScalarDefinition(t *testing.T)      {}
-func TestInputValueDefinition(t *testing.T)  {}
-func TestArgumentsDefinition(t *testing.T)   {}
-func TestFieldDefinition(t *testing.T)       {}
-func TestInterfaceDefinition(t *testing.T)   {}
-func TestSchema(t *testing.T)                {}
-func TestVisitor(t *testing.T)               {}
-func TestInspect(t *testing.T)               {}
+func TestTypeDefinition(t *testing.T) {
+	d := `type Human implements Character {
+	id: ID!
+	name: String!
+	friends: [Character]
+	appearsIn: [Episode]!
+	starships: [Starship]
+	totalCredits: Int @onField
+}`
+	fset := token.NewFileSet()
+	p := newParser([]byte(d), "", fset)
+	def, err := p.typeDefinition()
+	if err != nil {
+		t.Error("unexpected error", err)
+	}
+	assertEqual(t, "1:1", fset.Position(def.Pos()).String())
+	assertEqual(t, "8:2", fset.Position(def.End()).String())
+	assertEqual(t, "Human", def.Name.Text)
+	assertTrue(t, def.Implements != nil)
+	assertEqual(t, "1:12", fset.Position(def.Implements.Pos()).String())
+	assertEqual(t, "1:32", fset.Position(def.Implements.End()).String())
+	assertTrue(t, len(def.Implements.NamedTyps) == 1)
+	assertEqual(t, "Character", def.Implements.NamedTyps[0].Name.Text)
+	assertTrue(t, def.Directs == nil)
+	assertTrue(t, len(def.FieldDefns) == 6)
+
+	assertEqual(t, "2:2", fset.Position(def.FieldDefns[0].Pos()).String())
+	assertEqual(t, "2:9", fset.Position(def.FieldDefns[0].End()).String())
+	assertEqual(t, "3:2", fset.Position(def.FieldDefns[1].Pos()).String())
+	assertEqual(t, "3:15", fset.Position(def.FieldDefns[1].End()).String())
+	assertEqual(t, "4:2", fset.Position(def.FieldDefns[2].Pos()).String())
+	assertEqual(t, "4:22", fset.Position(def.FieldDefns[2].End()).String())
+	assertEqual(t, "5:2", fset.Position(def.FieldDefns[3].Pos()).String())
+	assertEqual(t, "5:23", fset.Position(def.FieldDefns[3].End()).String())
+	assertEqual(t, "6:2", fset.Position(def.FieldDefns[4].Pos()).String())
+	assertEqual(t, "6:23", fset.Position(def.FieldDefns[4].End()).String())
+	assertEqual(t, "7:2", fset.Position(def.FieldDefns[5].Pos()).String())
+	assertEqual(t, "7:28", fset.Position(def.FieldDefns[5].End()).String())
+}
+
+func TestInputObjectDefinition(t *testing.T) {
+	definition := `
+input AnnotatedInput @onInputObjectType {
+	annotatedField: Type @onField
+}`
+
+	fset := token.NewFileSet()
+	p := newParser([]byte(definition), "", fset)
+	def, err := p.inputObjectDefinition()
+	if err != nil {
+		t.Error("unexpected error", err)
+	}
+	assertEqual(t, "2:1", fset.Position(def.Pos()).String())
+	assertEqual(t, "4:2", fset.Position(def.End()).String())
+	assertTrue(t, def.Directs != nil)
+	assertTrue(t, len(def.InputValDefns) == 1)
+	assertEqual(t, "3:2", fset.Position(def.InputValDefns[0].Pos()).String())
+	assertEqual(t, "3:31", fset.Position(def.InputValDefns[0].End()).String())
+}
+
+func TestScalarDefinition(t *testing.T)     {}
+func TestInputValueDefinition(t *testing.T) {}
+func TestArgumentsDefinition(t *testing.T)  {}
+func TestFieldDefinition(t *testing.T)      {}
+func TestInterfaceDefinition(t *testing.T)  {}
+func TestSchema(t *testing.T)               {}
+func TestVisitor(t *testing.T)              {}
+func TestInspect(t *testing.T)              {}
