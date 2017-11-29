@@ -653,7 +653,7 @@ func (s *ScalarDefinition) End() token.Pos {
 	if s.Directs != nil {
 		return s.Directs.End()
 	}
-	return token.Pos(int(s.NamePos) + 1)
+	return token.Pos(int(s.NamePos) + len(s.Name.Text))
 }
 
 // InputObjectDefinition node

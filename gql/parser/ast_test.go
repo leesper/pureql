@@ -635,6 +635,8 @@ extend type Foo @onType {
 	assertEqual(t, "4:2", fset.Position(def.End()).String())
 	assertEqual(t, "3:7", fset.Position(def.TypDefn.FieldDefns[0].ArgDefns.Pos()).String())
 	assertEqual(t, "3:27", fset.Position(def.TypDefn.FieldDefns[0].ArgDefns.End()).String())
+	assertEqual(t, "3:8", fset.Position(def.TypDefn.FieldDefns[0].ArgDefns.InputValDefns[0].Pos()).String())
+	assertEqual(t, "3:26", fset.Position(def.TypDefn.FieldDefns[0].ArgDefns.InputValDefns[0].End()).String())
 	assertTrue(t, def.TypDefn != nil)
 }
 
@@ -698,7 +700,25 @@ input AnnotatedInput @onInputObjectType {
 	assertEqual(t, "3:31", fset.Position(def.InputValDefns[0].End()).String())
 }
 
-func TestScalarDefinition(t *testing.T)     {}
+func TestScalarDefinition(t *testing.T) {
+	scalar := `scalar CustomScalar @onScalar
+scalar Date`
+	fset := token.NewFileSet()
+	p := newParser([]byte(scalar), "", fset)
+	def, err := p.scalarDefinition()
+	if err != nil {
+		t.Error("unexpected error", err)
+	}
+	assertEqual(t, "1:1", fset.Position(def.Pos()).String())
+	assertEqual(t, "1:30", fset.Position(def.End()).String())
+
+	def, err = p.scalarDefinition()
+	if err != nil {
+		t.Error("unexpected error", err)
+	}
+	assertEqual(t, "2:1", fset.Position(def.Pos()).String())
+	assertEqual(t, "2:12", fset.Position(def.End()).String())
+}
 func TestInputValueDefinition(t *testing.T) {}
 func TestArgumentsDefinition(t *testing.T)  {}
 func TestFieldDefinition(t *testing.T)      {}
