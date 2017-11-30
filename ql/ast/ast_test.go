@@ -1,4 +1,4 @@
-package parser
+package ast
 
 import (
 	"fmt"
@@ -416,7 +416,7 @@ func TestOperationDefinition(t *testing.T) {
 	oper := `
 query HeroForEpisode($ep: Episode!) {
 	hero(episode: $ep) {
-		name
+		nick: name
 		... on Droid {
       primaryFunction
 		}
@@ -440,9 +440,19 @@ query HeroForEpisode($ep: Episode!) {
 	assertTrue(t, op.Directs == nil)
 	assertTrue(t, op.SelSet != nil)
 	assertTrue(t, len(op.SelSet.Sels) == 1)
+	assertTrue(t, op.SelSet.Sels[0].(*Field).Args != nil)
+	assertEqual(t, "3:6", fset.Position(op.SelSet.Sels[0].(*Field).Args.Pos()).String())
+	assertEqual(t, "3:20", fset.Position(op.SelSet.Sels[0].(*Field).Args.End()).String())
+	assertEqual(t, "3:7", fset.Position(op.SelSet.Sels[0].(*Field).Args.Args[0].Pos()).String())
+	assertEqual(t, "3:19", fset.Position(op.SelSet.Sels[0].(*Field).Args.Args[0].End()).String())
 	innerSelSet := op.SelSet.Sels[0].(*Field).SelSet
 	assertTrue(t, len(innerSelSet.Sels) == 3)
+	assertTrue(t, innerSelSet.Sels[0].(*Field) != nil)
+	assertEqual(t, "4:3", fset.Position(innerSelSet.Sels[0].(*Field).Als.Pos()).String())
+	assertEqual(t, "4:8", fset.Position(innerSelSet.Sels[0].(*Field).Als.End()).String())
 	assertEqual(t, "Droid", innerSelSet.Sels[1].(*InlineFragment).TypeCond.NamedTyp.Name.Text)
+	assertEqual(t, "5:7", fset.Position(innerSelSet.Sels[1].(*InlineFragment).TypeCond.Pos()).String())
+	assertEqual(t, "5:15", fset.Position(innerSelSet.Sels[1].(*InlineFragment).TypeCond.End()).String())
 	assertEqual(t, "Human", innerSelSet.Sels[2].(*InlineFragment).TypeCond.NamedTyp.Name.Text)
 	inlineFrag := innerSelSet.Sels[1].(*InlineFragment)
 	assertEqual(t, "5:3", fset.Position(inlineFrag.Pos()).String())
@@ -508,6 +518,8 @@ union AnnotatedUnionTwo @onUnion = A | B`
 	assertEqual(t, "Story", def.Members.NamedTyp.Name.Text)
 	assertEqual(t, "2:14", fset.Position(def.Members.Pos()).String())
 	assertEqual(t, "2:38", fset.Position(def.Members.End()).String())
+	assertEqual(t, "2:20", fset.Position(def.Members.Members[0].Pos()).String())
+	assertEqual(t, "2:29", fset.Position(def.Members.Members[0].End()).String())
 
 	def, err = p.unionDefinition()
 	if err != nil {
@@ -562,6 +574,8 @@ enum AnnotatedEnum @onEnum {
 	assertTrue(t, len(def.EnumVals) == 2)
 	assertEqual(t, "ANNOTATED_VALUE", def.EnumVals[0].Name.Text)
 	assertEqual(t, "onEnumValue", def.EnumVals[0].Directs.Directs[0].Name.Text)
+	assertEqual(t, "8:2", fset.Position(def.EnumVals[0].Pos()).String())
+	assertEqual(t, "8:30", fset.Position(def.EnumVals[0].End()).String())
 	assertEqual(t, "OTHER_VALUE", def.EnumVals[1].Name.Text)
 }
 

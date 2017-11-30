@@ -1,4 +1,4 @@
-package parser
+package ast
 
 import (
 	"errors"
@@ -6,7 +6,7 @@ import (
 	"go/token"
 )
 
-// Parser converts GraphQL source into AST.
+// converts GraphQL source into AST.
 type parser struct {
 	input        *lexer
 	lookAheads   []Token // LL(2), look two tokens ahead
