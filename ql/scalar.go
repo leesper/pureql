@@ -7,6 +7,17 @@ import (
 	"strconv"
 )
 
+// Type is the interface for all types.
+type Type interface {
+	typ()
+}
+
+// Leaf is the interface for all scalars.
+type Leaf interface {
+	Type
+	leaf()
+}
+
 // Scalar defines for all scalar types: Int, Float, String, Boolean, ID and
 // custom-defined.
 type Scalar struct {
@@ -22,8 +33,121 @@ func NewScalar(resFunc, inFunc CoerceFunc) *Scalar {
 	}
 }
 
+func (s *Scalar) leaf() {}
+func (s *Scalar) typ()  {}
+
 // CoerceFunc is the function type for serialize and deserialize.
 type CoerceFunc func(value interface{}) interface{}
+
+// Validator is the interface for all types needing validation.
+type Validator interface {
+	Validate() error
+}
+
+// Object represents GraphQL objects.
+type Object struct {
+	fields []Field
+}
+
+// Validate returns an error if Object is invalid.
+func (o *Object) Validate() error {
+	return errors.New("not implemented")
+}
+
+func (o *Object) typ() {}
+
+// Interface represents GraphQL interfaces.
+type Interface struct {
+	fields []Field
+}
+
+// Validate returns an error if Interface is invalid.
+func (i *Interface) Validate() error {
+	return errors.New("not implemented")
+}
+
+func (i *Interface) typ() {}
+
+// Union represents GraphQL unions.
+type Union struct {
+	objects []Object
+}
+
+// Validate returns an error if Union is invalid.
+func (u *Union) Validate() error {
+	return errors.New("not implemented")
+}
+
+func (u *Union) typ() {}
+
+// Enum represents GraphQL enums.
+type Enum struct {
+	valueSet map[int]EnumValue
+	nameSet  map[string]EnumValue // for O(1) look-up
+}
+
+// NewEnum returns an Enum of possible values, vals should be non-nil.
+func NewEnum(vals []string) *Enum {
+	if len(vals) == 0 {
+		return nil
+	}
+	enum := &Enum{
+		valueSet: map[int]EnumValue{},
+		nameSet:  map[string]EnumValue{},
+	}
+	for idx, val := range vals {
+		eval := EnumValue{name: val, value: idx}
+		enum.valueSet[idx] = eval
+		enum.nameSet[val] = eval
+	}
+	return enum
+}
+
+func (e *Enum) typ() {}
+
+// Result performs coercion result of Enum.
+func (e *Enum) Result(value interface{}) interface{} {
+	switch value := value.(type) {
+	case int:
+		return e.valueSet[value].name
+	case *int:
+		return e.valueSet[*value].name
+	default:
+		return fmt.Errorf("cannot coerce %T", value)
+	}
+}
+
+// Input performs coercion input of Enum.
+func (e *Enum) Input(value interface{}) interface{} {
+	switch value := value.(type) {
+	case int:
+		return e.valueSet[value]
+	case *int:
+		return e.valueSet[*value]
+	default:
+		return fmt.Errorf("cannot coerce %T", value)
+	}
+}
+
+// EnumValue is the values of some enum type.
+type EnumValue struct {
+	name  string
+	value int
+}
+
+// Field .
+type Field struct {
+	name string
+	args []Argument
+	typ  Type
+}
+
+// Argument .
+type Argument struct {
+	name    string
+	typ     Type
+	deflVal string
+}
 
 // built-in scalars
 var (
@@ -238,17 +362,6 @@ type Schema struct {
 	RootMutation Object
 }
 
-// Object .
-type Object struct {
-	fields []Field
-}
-
-// Interface .
-type Interface struct{}
-
-// Union .
-type Union struct{}
-
 // Operation .
 type Operation struct {
 	operType string
@@ -260,20 +373,6 @@ type Operation struct {
 type GroupedFieldSet struct {
 	rspKey string
 	fields []Field
-}
-
-// Field .
-type Field struct {
-	name string
-	args []Argument
-	typ  Type
-}
-
-// Argument .
-type Argument struct {
-	name    string
-	typ     Type
-	deflVal string
 }
 
 // Selection is an interface for Field, FragmentSpread, InlineFragment
@@ -291,16 +390,13 @@ type VariableDefinition struct {
 
 // Inputer for input coercion.
 type Inputer interface {
-	input(value interface{}) interface{}
+	Input(value interface{}) interface{}
 }
 
 // Resulter for output coercion
 type Resulter interface {
-	result(value interface{}) interface{}
+	Result(value interface{}) interface{}
 }
-
-// Type is the interface for all variable type.
-type Type interface{}
 
 // // Info for type name and description.
 // type Info struct {
