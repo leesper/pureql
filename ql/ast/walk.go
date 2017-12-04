@@ -267,7 +267,7 @@ func Walk(v Visitor, node Node) {
 			Walk(v, n.NamedTyp)
 		}
 	default:
-		panic(fmt.Sprintf("parser.Walk: unexpected node type %T", n))
+		panic(fmt.Sprintf("ast.Walk: unexpected node type %T", n))
 	}
 
 	v.Visit(nil)

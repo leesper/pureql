@@ -7,11 +7,6 @@ import (
 	"strconv"
 )
 
-// Type is the interface for all types.
-type Type interface {
-	typ()
-}
-
 // Leaf is the interface for all scalars.
 type Leaf interface {
 	Type
@@ -107,13 +102,6 @@ type Field struct {
 	name string
 	args []Argument
 	typ  Type
-}
-
-// Argument .
-type Argument struct {
-	name    string
-	typ     Type
-	deflVal string
 }
 
 // Union represents GraphQL unions.
@@ -386,41 +374,16 @@ func inputInt(value interface{}) interface{} {
 	}
 }
 
-// Document is a type-system type parsed from ast.Document.
-type Document struct {
-	opers []Operation
-}
-
 // Schema is a type-system type parsed from ast.SchemaDefinition.
 type Schema struct {
 	RootQuery    Object
 	RootMutation Object
 }
 
-// Operation .
-type Operation struct {
-	operType string
-	varDefns []VariableDefinition
-	selset   SelectionSet
-}
-
 // GroupedFieldSet .
 type GroupedFieldSet struct {
 	rspKey string
 	fields []Field
-}
-
-// Selection is an interface for Field, FragmentSpread, InlineFragment
-type Selection interface{}
-
-// SelectionSet .
-type SelectionSet struct{}
-
-// VariableDefinition .
-type VariableDefinition struct {
-	name    string
-	typ     string // TODO
-	deflVal string
 }
 
 // InputCoercer for input coercion.
