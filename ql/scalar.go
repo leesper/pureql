@@ -18,6 +18,12 @@ type Leaf interface {
 	leaf()
 }
 
+// InputField is the interface for all input fields: scalars, enums, input objects
+type InputField interface {
+	Type
+	inputField()
+}
+
 // Scalar defines for all scalar types: Int, Float, String, Boolean, ID and
 // custom-defined.
 type Scalar struct {
@@ -33,8 +39,19 @@ func NewScalar(resFunc, inFunc CoerceFunc) *Scalar {
 	}
 }
 
-func (s *Scalar) leaf() {}
-func (s *Scalar) typ()  {}
+// InputCoerce performs input coercion for Enum.
+func (s *Scalar) InputCoerce(value interface{}) interface{} {
+	return s.input(value)
+}
+
+// ResultCoerce performs result coercion for Enum.
+func (s *Scalar) ResultCoerce(value interface{}) interface{} {
+	return s.result(value)
+}
+
+func (s *Scalar) leaf()       {}
+func (s *Scalar) typ()        {}
+func (s *Scalar) inputField() {}
 
 // CoerceFunc is the function type for serialize and deserialize.
 type CoerceFunc func(value interface{}) interface{}
@@ -56,6 +73,23 @@ func (o *Object) Validate() error {
 
 func (o *Object) typ() {}
 
+// InputObject represents GraphQL input objects.
+type InputObject struct {
+	name   string
+	fields []ObjectField
+}
+
+// InputCoerce performs input coercion for InputObject.
+func (io *InputObject) InputCoerce(value interface{}) interface{} {
+	return errors.New("not implemented")
+}
+
+// ObjectField represents fields of GraphQL input objects.
+type ObjectField struct {
+	name  string
+	value string // TODO
+}
+
 // Interface represents GraphQL interfaces.
 type Interface struct {
 	fields []Field
@@ -67,6 +101,20 @@ func (i *Interface) Validate() error {
 }
 
 func (i *Interface) typ() {}
+
+// Field .
+type Field struct {
+	name string
+	args []Argument
+	typ  Type
+}
+
+// Argument .
+type Argument struct {
+	name    string
+	typ     Type
+	deflVal string
+}
 
 // Union represents GraphQL unions.
 type Union struct {
@@ -103,10 +151,11 @@ func NewEnum(vals []string) *Enum {
 	return enum
 }
 
-func (e *Enum) typ() {}
+func (e *Enum) typ()        {}
+func (e *Enum) inputField() {}
 
-// Result performs coercion result of Enum.
-func (e *Enum) Result(value interface{}) interface{} {
+// ResultCoerce performs result coercion for Enum.
+func (e *Enum) ResultCoerce(value interface{}) interface{} {
 	switch value := value.(type) {
 	case int:
 		return e.valueSet[value].name
@@ -117,8 +166,8 @@ func (e *Enum) Result(value interface{}) interface{} {
 	}
 }
 
-// Input performs coercion input of Enum.
-func (e *Enum) Input(value interface{}) interface{} {
+// InputCoerce performs input coercion for Enum.
+func (e *Enum) InputCoerce(value interface{}) interface{} {
 	switch value := value.(type) {
 	case int:
 		return e.valueSet[value]
@@ -133,20 +182,6 @@ func (e *Enum) Input(value interface{}) interface{} {
 type EnumValue struct {
 	name  string
 	value int
-}
-
-// Field .
-type Field struct {
-	name string
-	args []Argument
-	typ  Type
-}
-
-// Argument .
-type Argument struct {
-	name    string
-	typ     Type
-	deflVal string
 }
 
 // built-in scalars
@@ -388,14 +423,14 @@ type VariableDefinition struct {
 	deflVal string
 }
 
-// Inputer for input coercion.
-type Inputer interface {
-	Input(value interface{}) interface{}
+// InputCoercer for input coercion.
+type InputCoercer interface {
+	InputCoerce(value interface{}) interface{}
 }
 
-// Resulter for output coercion
-type Resulter interface {
-	Result(value interface{}) interface{}
+// ResultCoercer for output coercion
+type ResultCoercer interface {
+	ResultCoerce(value interface{}) interface{}
 }
 
 // // Info for type name and description.
