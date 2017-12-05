@@ -1,5 +1,6 @@
 package ql
 
+// Value interface for all values.
 type Value interface {
 	valueType()
 }
