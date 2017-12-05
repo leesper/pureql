@@ -3,7 +3,7 @@ package ql
 // Field represents fields in Object, Interface and InputObject.
 type Field struct {
 	Name string
-	Typ  interface{} // TODO: maybe a Type interface is appropriate
+	Typ  Type
 	Defs []*ArgDef
 }
 

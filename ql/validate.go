@@ -5,7 +5,7 @@ import (
 	"reflect"
 )
 
-func ruleMustDefineOneOrMoreFields(typ interface{}) error {
+func ruleMustDefineOneOrMoreFields(typ Type) error {
 	var numOfFields = 0
 	switch typ := typ.(type) {
 	case *Object:
@@ -24,7 +24,7 @@ func ruleMustDefineOneOrMoreFields(typ interface{}) error {
 	return nil
 }
 
-func ruleFieldsMustHaveUniqueNamesWithin(typ interface{}) error {
+func ruleFieldsMustHaveUniqueNamesWithin(typ Type) error {
 	var fields []*Field
 	switch typ := typ.(type) {
 	case *Object:
@@ -78,7 +78,7 @@ func ruleMustIncludeFieldOfSameName(obj *Object, iface *Interface) error {
 	return nil
 }
 
-func ruleMustBeEqualOrSubTypeOf(typ, super interface{}) error {
+func ruleMustBeEqualOrSubTypeOf(typ, super Type) error {
 	if reflect.DeepEqual(typ, super) {
 		return nil
 	}
