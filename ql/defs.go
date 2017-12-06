@@ -9,8 +9,8 @@ type Field struct {
 
 // ArgDef represents argument definitions in Object and Interface.
 type ArgDef struct {
-	name string
-	typ  interface{}
+	Name string
+	Typ  Type
 	defl interface{}
 	// directs []*Directive
 }

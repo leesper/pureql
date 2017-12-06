@@ -3,7 +3,19 @@ package ql
 import (
 	"fmt"
 	"reflect"
+
+	"github.com/leesper/pureql/ql/ast"
 )
+
+// TODO
+func validateSchema(schema *Schema) error {
+	return fmt.Errorf("not implemented")
+}
+
+// TODO
+func validateDocument(doc *ast.Document) error {
+	return fmt.Errorf("not implemented")
+}
 
 func validateObject(obj *Object) error {
 	err := ruleMustDefineOneOrMoreFields(obj)
@@ -176,15 +188,15 @@ func ruleMustBeEqualOrSubTypeOf(typ, super Type) error {
 func ruleMustIncludeAgrumentOfSameName(args []*ArgDef, iargs []*ArgDef) error {
 	argMap := map[string]*ArgDef{}
 	for _, a := range args {
-		argMap[a.name] = a
+		argMap[a.Name] = a
 	}
 
 	for _, a := range iargs {
-		if argMap[a.name] == nil {
-			return fmt.Errorf("no argument definition found for %s", a.name)
+		if argMap[a.Name] == nil {
+			return fmt.Errorf("no argument definition found for %s", a.Name)
 		}
-		if !reflect.DeepEqual(argMap[a.name].typ, a.typ) {
-			return fmt.Errorf("expected argument type %T, found %T", a.typ, argMap[a.name].typ)
+		if !reflect.DeepEqual(argMap[a.Name].Typ, a.Typ) {
+			return fmt.Errorf("expected argument type %T, found %T", a.Typ, argMap[a.Name].Typ)
 		}
 	}
 	return nil
