@@ -5,6 +5,66 @@ import (
 	"reflect"
 )
 
+func validateObject(obj *Object) error {
+	err := ruleMustDefineOneOrMoreFields(obj)
+	if err != nil {
+		return err
+	}
+
+	if err = ruleFieldsMustHaveUniqueNamesWithin(obj); err != nil {
+		return err
+	}
+
+	if err = ruleMustBeSuperSetOfAllIfaces(obj); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func validateIface(iface *Interface) error {
+	err := ruleMustDefineOneOrMoreFields(iface)
+	if err != nil {
+		return err
+	}
+
+	if err = ruleFieldsMustHaveUniqueNamesWithin(iface); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func validateUnion(union *Union) error {
+	err := ruleMustDefineOneOrMoreMemberTypes(union)
+	if err != nil {
+		return err
+	}
+
+	if err = ruleMustBeAllObjectTypes(union); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func validateInputObj(iobj *InputObject) error {
+	err := ruleMustDefineOneOrMoreFields(iobj)
+	if err != nil {
+		return err
+	}
+
+	if err = ruleFieldsMustHaveUniqueNamesWithin(iobj); err != nil {
+		return err
+	}
+
+	if err = ruleFieldOfInputObjectMustBeInputType(iobj); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func ruleMustDefineOneOrMoreFields(typ Type) error {
 	var numOfFields = 0
 	switch typ := typ.(type) {
